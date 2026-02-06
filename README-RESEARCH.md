@@ -14,6 +14,7 @@ front controller functionality:
 - [Kohana](https://github.com/kohana/kohana/) (kohana)
 - [Laminas MVC](https://github.com/laminas/laminas-mvc-skeleton/) (laminas)
 - [Laravel](https://github.com/laravel/laravel/) (laravel)
+- [LeafPHP](https://github.com/leafsphp/leafMVC) (leafphp)
 - [LightMVC](https://github.com/lightmvc/lightmvcskel/) (lightmvc)
 - [Lithium](https://github.com/UnionOfRAD/framework/) (lithium)
 - [Mezzio](https://github.com/mezzio/mezzio-skeleton/) (mezzio)
@@ -48,21 +49,22 @@ These are the scripts in each project bootstrap that invoke the front controller
 | flightphp | [`app/config/bootstrap.php`](https://github.com/flightphp/skeleton/blob/master/app/config/bootstrap.php) |
 | fuelphp   | [`public/index.php`](https://github.com/fuel/fuel/blob/1.8/master/public/index.php)                      |
 | joomla    | [`includes/app.php`](https://github.com/joomla/joomla-cms/blob/5.4-dev/includes/app.php)                 |
-| klein     | [(documentation)](https://github.com/klein/klein.php?tab=readme-ov-file#example)                           |
+| klein     | [(documentation)](https://github.com/klein/klein.php?tab=readme-ov-file#example)                         |
 | kohana    | [`index.php`](https://github.com/kohana/kohana/blob/3.3/master/index.php)                                |
 | laminas   | [`public/index.php`](https://github.com/laminas/laminas-mvc-skeleton/blob/2.5.x/public/index.php)        |
 | laravel   | [`public/index.php`](https://github.com/laravel/laravel/blob/12.x/public/index.php)                      |
+| leafphp   | [`public/index.php`](https://github.com/leafsphp/leafMVC/blob/v4.x/public/index.php)                     |
 | lightmvc  | [`public/index.php`](https://github.com/lightmvc/lightmvcskel/blob/master/public/index.php)              |
 | lithium   | [`webroot/index.php`](https://github.com/UnionOfRAD/framework/blob/1.2/webroot/index.php)                |
-| mezzio    | [`public/index.php`](https://github.com/mezzio/mezzio-skeleton/blob/3.18.x/public/index.php)            |
-| nette     | [`www/index.php`](https://github.com/nette-examples/quickstart/blob/v4.0/www/index.php)              |
-| phalcon   | [`public/index.php`](https://github.com/phalcon/tutorial/blob/master/public/index.php)                  |
-| phpixie   | [`web/index.php`](https://github.com/dracony/PHPixie-Sample-App/blob/master/web/index.php)           |
-| silex     | [(documentation)](https://github.com/silexphp/Silex?tab=readme-ov-file#silex-a-simple-web-framework) |
-| slim      | [`public/index.php`](https://github.com/slimphp/Slim-Skeleton/blob/main/public/index.php)               |
-| symfony   | [(template)](https://github.com/symfony/runtime/blob/8.1/Internal/autoload_runtime.template)    |
-| tempest   | [`public/index.php`](https://github.com/tempestphp/tempest-framework/blob/3.x/public/index.php)         |
-| yii       | [`public/index.php`](https://github.com/yiisoft/demo/blob/master/blog/public/index.php)                 |
+| mezzio    | [`public/index.php`](https://github.com/mezzio/mezzio-skeleton/blob/3.18.x/public/index.php)             |
+| nette     | [`www/index.php`](https://github.com/nette-examples/quickstart/blob/v4.0/www/index.php)                  |
+| phalcon   | [`public/index.php`](https://github.com/phalcon/tutorial/blob/master/public/index.php)                   |
+| phpixie   | [`web/index.php`](https://github.com/dracony/PHPixie-Sample-App/blob/master/web/index.php)               |
+| silex     | [(documentation)](https://github.com/silexphp/Silex?tab=readme-ov-file#silex-a-simple-web-framework)     |
+| slim      | [`public/index.php`](https://github.com/slimphp/Slim-Skeleton/blob/main/public/index.php)                |
+| symfony   | [(template)](https://github.com/symfony/runtime/blob/8.1/Internal/autoload_runtime.template)             |
+| tempest   | [`public/index.php`](https://github.com/tempestphp/tempest-framework/blob/3.x/public/index.php)          |
+| yii       | [`public/index.php`](https://github.com/yiisoft/demo/blob/master/blog/public/index.php)                  |
 
 Note that these are not necessarily the entry point scripts, and that some
 projects use multiple files for their bootstrap:
@@ -103,6 +105,7 @@ project.
 | kohana    | x       | `Request::factory(TRUE, array(), FALSE)->execute();` |
 | laminas   |         | `$app->run();` |
 | laravel   |         | `$app->handleRequest(Request::capture());` |
+| leafphp   | x       | `\Leaf\Core::runApplication();` |
 | lightmvc  |         | `$app->initialize($baseConfig)->run();` |
 | lithium   | x       | `lithium\action\Dispatcher::run(/* ... */);` |
 | mezzio    |         | `$app->run();` |
@@ -132,6 +135,7 @@ The projects each use some variation on this verb for the front controller main 
 | kohana    |              | x           |            |              |         |           |
 | laminas   |              |             |            |              | x       |           |
 | laravel   |              |             | x          |              |         |           |
+| leafphp   |              |             |            |              | x       |           |
 | lightmvc  |              |             |            |              | x       |           |
 | lithium   |              |             |            |              | x       |           |
 | mezzio    |              |             |            |              | x       |           |
@@ -144,7 +148,7 @@ The projects each use some variation on this verb for the front controller main 
 | tempest   |              |             |            |              | x       |           |
 | yii       |              |             |            |              | x       |           |
 
-The term `run` is a clear majority at 11 uses; all others together number only 7.
+The term `run` is a clear majority at 12 uses; all other variations together number only 7.
 
 ## Front Controller Return
 
@@ -165,6 +169,7 @@ integer exit code.
 | kohana    |           | x        |       |
 | laminas   | x         |          |       |
 | laravel   | x         |          |       |
+| leafphp   | x         |          |       |
 | lightmvc  | x         |          |       |
 | lithium   | x         |          |       |
 | mezzio    | x         |          |       |
