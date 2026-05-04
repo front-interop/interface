@@ -1,5 +1,8 @@
 # Front-Interop Standard Interface Package
 
+[![PDS Skeleton](https://img.shields.io/badge/pds-skeleton-blue.svg?style=flat-square)](https://github.com/php-pds/skeleton)
+[![PDS Composer Script Names](https://img.shields.io/badge/pds-composer--script--names-blue?style=flat-square)](https://github.com/php-pds/composer-script-names)
+
 Front-Interop provides an interoperable package of standard interfaces for
 front controller functionality in any execution context (HTTP, CLI, etc.). It
 reflects, refines, and reconciles the common practices identified within
@@ -9,15 +12,17 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be
 interpreted as described in [BCP 14][] ([RFC 2119][], [RFC 8174][]).
 
+This package attempts to adhere to the [Package Development Standards](https://php-pds.com/) approach to [naming and versioning](https://php-pds.com/#naming-and-versioning).
+
 ## Interfaces
 
 This package defines the following interface:
 
-- [_FrontController_] affords an entry point into the outermost presentation layer in any execution context (HTTP, CLI, etc.).
+- [_FrontController_][] affords an entry point into the outermost presentation layer in any execution context (HTTP, CLI, etc.).
 
 ### _FrontController_
 
-[_FrontController_] affords an entry point into the outermost presentation
+[_FrontController_][] affords an entry point into the outermost presentation
 layer in any execution context (HTTP, CLI, etc.).
 
 - Directives:
@@ -51,15 +56,11 @@ layer in any execution context (HTTP, CLI, etc.).
 
 ## Implementations
 
-- Directives:
+Implementations MAY define additional class members not defined in these interfaces.
 
-    - Implementations MAY define additional class members not defined in these
-      interfaces.
+Notes:
 
-- Notes:
-
-    - **Reference implementations** may be found at
-      <https://github.com/front-interop/impl>.
+- **Reference implementations** are available at <https://github.com/front-interop/impl>.
 
 ## Q & A
 
@@ -89,7 +90,7 @@ other execution contexts, and keeps the interface machine-friendly.
 
 [_Throwable_]: https://php.net/Throwable
 [_FrontController_]: #frontcontroller
-[BCP 14]: https://www.rfc-editor.org/info/bcp14
+[BCP 14]: https://datatracker.ietf.org/doc/bcp14/
 [PSR-11]: https://www.php-fig.org/psr/psr-11/
 [README-RESEARCH.md]: ./README-RESEARCH.md
 [RFC 2119]: https://datatracker.ietf.org/doc/html/rfc2119
