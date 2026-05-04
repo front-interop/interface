@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace FrontInterop\Interface;
 
 /**
- * [_FrontController_] affords an entry point into the outermost presentation
+ * [_FrontController_][] affords an entry point into the outermost presentation
  * layer in any execution context (HTTP, CLI, etc.).
  *
  * - Directives:
