@@ -74,10 +74,13 @@ follows the majority practice.
 
 ### Why does `run()` return `int`?
 
-Most of the researched front controllers handle response-sending internally and
-return `void`. One (Symfony) handles response-sending internally and returns an
-`int` exit code. The remainder return a response to be sent by the calling logic
-(typically a bootstrap script).
+Of the 23 researched projects:
+
+- 11 return `void` or `null` and handle response-sending themselves;
+- 7 return a response object for the calling code to send;
+- 3 return some other value (`$this` or `mixed`);
+- 1 (Tempest) `never` returns; and
+- 1 (Symfony) returns an `int` exit code.
 
 As such, pre-release review indicated that the front controller in an HTTP
 execution context should handle sending the response, as do the majority of
@@ -88,20 +91,32 @@ While providing two interfaces (one to return `void` and another to return
 `int`) would cover both cases, it leads to inconsistencies in setup and
 expectations.
 
-Thus, contra the majority of `void` returns, Front-Interop directs that `run()`
-should return an integer exit code. This is an unusual practice for front
-controllers in an HTTP execution context, but imposes only a trivial
+Thus, contra the most common `void`/`null` return, Front-Interop directs that
+`run()` should return an integer exit code. This is an unusual practice for
+front controllers in an HTTP execution context, but imposes only a trivial
 implementation burden. Doing so allows the same interface to be used in CLI and
 other execution contexts, and keeps the interface machine-friendly.
+
+### Why does the front controller handle all `Throwable`s?
+
+A front controller sits at the outermost edge of the presentation layer:
+the only code calling `run()` is a bootstrap script. That script has no
+meaningful way to recover from arbitrary errors raised inside the
+application — output to the response stream (HTTP body or CLI) has
+typically already begun, and the bootstrap lacks the application context
+to render a meaningful error page or message.
+
+Requiring the front controller to handle all `Throwable`s internally —
+either by catching them or by registering [`set_exception_handler()`][] —
+keeps the bootstrap simple and consistent across implementations: it can
+always assume `run()` returns an exit code, never throws.
 
 * * *
 
 [_Throwable_]: https://php.net/Throwable
 [_FrontController_]: #frontcontroller
 [BCP 14]: https://datatracker.ietf.org/doc/bcp14/
-[PSR-11]: https://www.php-fig.org/psr/psr-11/
 [README-RESEARCH.md]: ./README-RESEARCH.md
 [RFC 2119]: https://datatracker.ietf.org/doc/html/rfc2119
 [RFC 8174]: https://datatracker.ietf.org/doc/html/rfc8174
-[`set_error_handler()`]: https://php.net/set_error_handler
 [`set_exception_handler()`]: https://php.net/set_exception_handler
