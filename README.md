@@ -64,6 +64,14 @@ Notes:
 
 ## Q & A
 
+### Why `run()`?
+
+The researched projects use one of six verbs for the front controller's main
+method: `dispatch()`, `execute()`, `handle()`, `__invoke()`, `run()`, or
+`start()`. Of these, `run()` is the clear majority at 12 of 23 projects;
+the remaining five verbs together account for the other 11. Front-Interop
+follows the majority practice.
+
 ### Why does `run()` return `int`?
 
 Most of the researched front controllers handle response-sending internally and
