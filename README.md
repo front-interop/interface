@@ -33,26 +33,51 @@ layer in any execution context (HTTP, CLI, etc.).
 
     - **Handle all possible exceptions.** The logic calling the front
       controller should not have to deal with any exceptions bubbling up from
-      it. This may be accomplished by catching all [_Throwable_][]s or using
-      [`set_exception_handler()`][].
+      it. The implementation may accomplish this by catching [_Throwable_][]s
+      itself, by registering a [`set_exception_handler()`][] callback, or by
+      some other means.
 
 #### _FrontController_ Methods
 
 - ```php
-  public function run() : int;
+  public function run() : int<0,254>;
   ```
     - Runs the front controller.
 
     - Directives:
 
-        - Implementations MUST return a meaningful exit code.
+        - Implementations MUST report success by returning an integer `0`.
+
+        - Implementations MUST report non-success by returning an integer
+          between `1` and `254` (inclusive).
 
     - Notes:
 
-        - **Return `0` on success, `1` (or another non-zero exit code) on
-          failure.** Because this interface is intended to be usable in any
-          execution context, it should be machine-friendly. Returning an exit
-          code helps to make it so.
+        - **The return value is intended as an exit status code.** Exit
+          status codes may be received initially by the in-process code
+          that invoked `run()` (bootstrap scripts, test harnesses, etc.),
+          and may ultimately be received by a parent process (shell,
+          supervisor, init system, CI runner, monitoring tool, or
+          similar) via an `exit()` call. Whether or not the exit status
+          code is consumed by the calling code or parent process depends
+          on the execution environment: php-fpm and mod_php typically
+          have no consumer, whereas worker loops, supervised long-running
+          processes, runtime layers, and CI harnesses do.
+
+        - **"Success" and "non-success" are context-dependent.** What
+          counts as success depends on the execution context. In an HTTP
+          context, "success" typically means that the request was
+          processed and a response was emitted regardless of the HTTP
+          status code, whereas "non-success" may indicate that a
+          [_Throwable_][] had to be handled by the _FrontController_
+          itself. In a command line context, "success" typically
+          means that the command completed without errors, whereas
+          "non-success" may be one of several error conditions
+          (cf. the `<sysexits.h>` conventions where applicable).
+
+        - **The exit status code `255` is reserved by PHP itself.** Cf.
+          [exit()][]: "Exit codes should be in the range 0 to 254, the
+          exit code 255 is reserved by PHP and should not be used."
 
 ## Implementations
 
@@ -83,33 +108,53 @@ Of the 23 researched projects:
 - 1 (Symfony) returns an `int` exit code.
 
 As such, pre-release review indicated that the front controller in an HTTP
-execution context should handle sending the response, as do the majority of
-projects. However, a front controller in a CLI execution context will need to
-return an exit code.
+execution context should handle sending the response itself and return nothing,
+as do the majority of projects.
+
+However, Front-Interop observes that a front controller in a different execution
+context may need to return an integer exit status code to its caller or parent
+process. These contexts include, among others:
+
+- command line invocations
+- continuous integration runners
+- long-running processes
+- queue workers
+- test harnesses
+- worker loops
 
 While providing two interfaces (one to return `void` and another to return
 `int`) would cover both cases, it leads to inconsistencies in setup and
 expectations.
 
-Thus, contra the most common `void`/`null` return, Front-Interop directs that
-`run()` should return an integer exit code. This is an unusual practice for
-front controllers in an HTTP execution context, but imposes only a trivial
-implementation burden. Doing so allows the same interface to be used in CLI and
-other execution contexts, and keeps the interface machine-friendly.
+Thus, contra the most common `void` or `null` return, Front-Interop directs that
+`run()` should return an integer exit status code. This is an unusual practice
+for front controllers in an HTTP execution context, but imposes only a trivial
+implementation burden. Doing so allows the same interface to be used across
+many different execution contexts, and keeps the interface machine-friendly.
 
-### Why does the front controller handle all `Throwable`s?
+### Why handle all `Throwable`s?
 
-A front controller sits at the outermost edge of the presentation layer:
-the only code calling `run()` is a bootstrap script. That script has no
-meaningful way to recover from arbitrary errors raised inside the
-application — output to the response stream (HTTP body or CLI) has
-typically already begun, and the bootstrap lacks the application context
-to render a meaningful error page or message.
+Of the 23 researched projects, 21 handle exceptions in some way. The specific
+handling location varies between projects: 4 in the bootstrap, 2 in the front
+controller itself, and the remainder somewhere deeper in the call stack. For
+that remainder, either the bootstrap or the front controller defines or
+registers the handling logic.
 
-Requiring the front controller to handle all `Throwable`s internally —
-either by catching them or by registering [`set_exception_handler()`][] —
-keeps the bootstrap simple and consistent across implementations: it can
-always assume `run()` returns an exit code, never throws.
+Of the 21 projects that handle exceptions, 19 handle all types of `Throwable`,
+1 handles all types of `Exception`, and 1 handles only specific exception
+subtypes.
+
+Front-Interop observes that a front controller invocation occurs at
+the outermost boundary of the presentation layer. This is the last point at
+which any uncaught `Throwable`s may be handled gracefully. The choice then is
+whether they are handled by the bootstrap script, or by the front controller
+proper.
+
+In the interest of keeping such handling within a class, Front-Interop directs
+that _FrontController_ itself must act as (or delegate to) a final backstop
+against `Throwable`s. There may be other handling subsystems in the logic called
+by the _FrontController_, but any `Throwable` that escapes them will be handled
+by the _FrontController_ or its delegate.
 
 * * *
 
@@ -120,3 +165,4 @@ always assume `run()` returns an exit code, never throws.
 [RFC 2119]: https://datatracker.ietf.org/doc/html/rfc2119
 [RFC 8174]: https://datatracker.ietf.org/doc/html/rfc8174
 [`set_exception_handler()`]: https://php.net/set_exception_handler
+[exit()]: https://php.net/exit
