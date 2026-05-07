@@ -175,31 +175,31 @@ response to be sent by the bootstrap script, and one (`symfony`) returns an
 integer exit code. Note that just because the front controller returns something
 does not mean the bootstrap code actually does anything with that value.
 
-|             | `null`/`void` | Response | `int` | `never` | other |
-| ----------- | ------------- | -------- | ----- | ------- | ----- |
-| aura        | x             |          |       |         |       |
-| bear        |               | x        |       |         |       |
-| cakephp     |               | x        |       |         |       |
-| fatfree (1) |               |          |       |         | x     |
-| flightphp   | x             |          |       |         |       |
-| fuelphp (2) |               |          |       |         | x     |
-| joomla      | x             |          |       |         |       |
-| klein       | x             |          |       |         |       |
-| kohana      |               | x        |       |         |       |
-| laminas (3) |               |          |       |         | x     |
-| laravel     | x             |          |       |         |       |
-| leafphp     | x             |          |       |         |       |
-| lightmvc    | x             |          |       |         |       |
-| lithium (4) |               | x        |       |         | x     |
-| mezzio      | x             |          |       |         |       |
-| nette       | x             |          |       |         |       |
-| phalcon (5) |               | x        |       |         | x     |
-| phpixie     |               | x        |       |         |       |
-| silex       | x             |          |       |         |       |
-| slim        |               | x        |       |         |       |
-| symfony (6) |               |          | x     |         |       |
-| tempest     |               |          |       | x       |       |
-| yii         | x             |          |       |         |       |
+|           | `null`/`void` | Response | `int` | `never` | other |
+| --------- | ------------- | -------- | ----- | ------- | ----- |
+| aura      | x             |          |       |         |       |
+| bear      |               | x        |       |         |       |
+| cakephp   |               | x        |       |         |       |
+| fatfree   |               |          |       |         | x (1) |
+| flightphp | x             |          |       |         |       |
+| fuelphp   |               |          |       |         | x (2) |
+| joomla    | x             |          |       |         |       |
+| klein     | x             |          |       |         |       |
+| kohana    |               | x        |       |         |       |
+| laminas   |               |          |       |         | x (3) |
+| laravel   | x             |          |       |         |       |
+| leafphp   | x             |          |       |         |       |
+| lightmvc  | x             |          |       |         |       |
+| lithium   |               | x (4)    |       |         | x (4) |
+| mezzio    | x             |          |       |         |       |
+| nette     | x             |          |       |         |       |
+| phalcon   |               | x (5)    |       |         | x (5) |
+| phpixie   |               | x        |       |         |       |
+| silex     | x             |          |       |         |       |
+| slim      |               | x        |       |         |       |
+| symfony   |               |          | x (6) |         |       |
+| tempest   |               |          |       | x       |       |
+| yii       | x             |          |       |         |       |
 
 Notes:
 
@@ -219,3 +219,93 @@ self-return); no declared return type.
 `Symfony\Component\Runtime\RunnerInterface::run()`, not from the application or
 kernel; `HttpKernel::handle()` itself returns a `Response`. The Runtime template
 wraps the kernel and converts the response into an exit code.
+
+## Front Controller Exception Handling
+
+Of the 23 projects, 21 catch and handle exceptions in some fashion. For
+extended research and details, please see [README-EXCEPTIONS.md](./README-EXCEPTIONS.md).
+
+### Handling Location
+
+The points at which exception handling occurs are:
+
+- `none`: no observed exception/error handling
+- `bootstrap`: in the bootstrap script
+- `front`: in the front controller itself
+- `middleware`: in a middleware component
+- `handlers`: via `set_exception_handler()` (et al.) registered by the front controller or framework
+- `listeners`: via event listeners registered by the front controller or framework
+- `other`: in some other component, typically deeper in the framework internals
+
+|           | none | bootstrap | front | middleware | handlers | listeners | other |
+| --------- | ---- | --------- | ----- | ---------- | -------- | --------- | ----- |
+| aura      | x    |           |       |            |          |           |       |
+| bear      |      | x         |       |            |          |           |       |
+| cakephp   |      |           |       | x          |          |           |       |
+| fatfree   |      |           |       |            | x        |           |       |
+| flightphp |      |           |       |            | x (1)    |           |       |
+| fuelphp   |      | x         |       |            |          |           |       |
+| joomla    |      |           |       | x          |          |           |       |
+| klein     |      |           | x     |            |          |           |       |
+| kohana    |      |           |       |            |          |           | x     |
+| laminas   |      |           |       |            |          | x         |       |
+| laravel   |      |           |       |            |          |           | x     |
+| leafphp   |      |           |       |            |          |           | x     |
+| lightmvc  |      | x (2)     |       |            |          |           |       |
+| lithium   | x    |           |       |            |          |           |       |
+| mezzio    |      |           |       | x          |          |           |       |
+| nette     |      |           | x     |            |          |           |       |
+| phalcon   |      | x         |       |            |          |           |       |
+| phpixie   |      |           |       |            |          |           | x     |
+| silex     |      |           |       |            |          | x         |       |
+| slim      |      |           |       | x          |          |           |       |
+| symfony   |      |           |       |            |          | x         |       |
+| tempest   |      |           |       |            |          |           | x     |
+| yii       |      |           |       |            |          |           | x     |
+
+Notes:
+
+(1) `flightphp` catching is conditional on the `flight.handle_errors` config.
+
+(2) `lightmvc` catching applies only in the production environment.
+
+### Types Handled
+
+The types caught by exception handling are:
+
+- `Throwable`: both `Exception`s and `Error`s
+- `Exception`: `Exception` but not `Error`
+- `limited`: only specific exception subtypes
+- `none`: no catching at all
+
+|             | `Throwable` | `Exception` | limited | none |
+| ----------- | ----------- | ----------- | ------- | ---- |
+| aura        |             |             |         | x    |
+| bear        | x           |             |         |      |
+| cakephp     | x           |             |         |      |
+| fatfree     | x           |             |         |      |
+| flightphp   | x (1)       |             |         |      |
+| fuelphp     |             |             | x       |      |
+| joomla      | x           |             |         |      |
+| klein       | x           |             |         |      |
+| kohana      | x           |             |         |      |
+| laminas     | x           |             |         |      |
+| laravel     | x           |             |         |      |
+| leafphp     | x           |             |         |      |
+| lightmvc    | x (2)       |             |         |      |
+| lithium     |             |             |         | x    |
+| mezzio      | x           |             |         |      |
+| nette       | x           |             |         |      |
+| phalcon     |             | x           |         |      |
+| phpixie     | x           |             |         |      |
+| silex       | x           |             |         |      |
+| slim        | x           |             |         |      |
+| symfony     | x           |             |         |      |
+| tempest     | x           |             |         |      |
+| yii         | x           |             |         |      |
+
+Notes:
+
+(1) `flightphp` catching is conditional on the `flight.handle_errors` config.
+
+(2) `lightmvc` catching applies only in the production environment.
