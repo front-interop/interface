@@ -15,10 +15,11 @@ namespace FrontInterop\Interface;
  *
  *     - **Handle all possible exceptions.** The logic calling the front
  *       controller should not have to deal with any exceptions bubbling up from
- *       it. The implementation may accomplish this by catching [_Throwable_][]s
- *       itself, by registering a [`set_exception_handler()`][] callback, or by
- *       some other means.
+ *       it. The implementation may accomplish this by catching [_Throwable_][]
+ *       directly, by registering a [`set_exception_handler()`][] callback, or
+ *       by some other means.
  *
+ * @phpstan-import-type front_exit_status_int from FrontTypeAliases
  */
 interface FrontController
 {
@@ -35,18 +36,17 @@ interface FrontController
      * - Notes:
      *
      *     - **The return value is intended as an exit status code.** Exit
-     *       status codes may be received initially by the in-process code
+     *       status codes may be received initially by the in-process logic
      *       that invoked `run()` (bootstrap scripts, test harnesses, etc.),
      *       and may ultimately be received by a parent process (shell,
      *       supervisor, init system, CI runner, monitoring tool, or
-     *       similar) via an `exit()` call. Whether or not the exit status
-     *       code is consumed by the calling code or parent process depends
+     *       similar) via [`exit()`][]. Whether or not the exit status
+     *       is consumed by the calling code or parent process depends
      *       on the execution environment: php-fpm and mod_php typically
      *       have no consumer, whereas worker loops, supervised long-running
      *       processes, runtime layers, and CI harnesses do.
      *
-     *     - **"Success" and "non-success" are context-dependent.** What
-     *       counts as success depends on the execution context. In an HTTP
+     *     - **"Success" and "non-success" are context-dependent.** In an HTTP
      *       context, "success" typically means that the request was
      *       processed and a response was emitted regardless of the HTTP
      *       status code, whereas "non-success" may indicate that a
@@ -54,13 +54,13 @@ interface FrontController
      *       itself. In a command line context, "success" typically
      *       means that the command completed without errors, whereas
      *       "non-success" may be one of several error conditions
-     *       (cf. the `<sysexits.h>` conventions where applicable).
+     *       (cf. the [`sysexits.h`][] conventions where applicable).
      *
      *     - **The exit status code `255` is reserved by PHP itself.** Cf.
-     *       [exit()][]: "Exit codes should be in the range 0 to 254, the
+     *       [`exit()`][]: "Exit codes should be in the range 0 to 254, the
      *       exit code 255 is reserved by PHP and should not be used."
      *
-     * @return int<0,254>
+     * @return front_exit_status_int
      */
     public function run() : int;
 }

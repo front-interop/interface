@@ -1,7 +1,7 @@
 {
     "name": "front-interop/interface",
     "type": "library",
-    "description": "",
+    "description": "Interoperable front controller interfaces for PHP.",
     "keywords": ["front", "controller"],
     "license": "MIT",
     "homepage": "https://github.com/front-interop/interface",

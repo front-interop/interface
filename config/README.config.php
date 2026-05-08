@@ -4,5 +4,6 @@
     'template' => dirname(__DIR__) . '/resources/README.tpl.md',
     'interfaces' => [
         'FrontController',
+        'FrontTypeAliases',
     ],
 ];
