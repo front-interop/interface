@@ -9,7 +9,7 @@ reflects, refines, and reconciles the common practices identified within
 [several pre-existing projects][README-RESEARCH.md].
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
-"SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be
+"SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
 interpreted as described in [BCP 14][] ([RFC 2119][], [RFC 8174][]).
 
 This package attempts to adhere to the [Package Development Standards](https://php-pds.com/) approach to [naming and versioning](https://php-pds.com/#naming-and-versioning).
@@ -27,18 +27,6 @@ This package defines the following interfaces:
 [_FrontController_][] affords an entry point into the outermost presentation
 layer in any execution context (HTTP, CLI, etc.).
 
-- Directives:
-
-    - Implementations MUST gracefully handle all [_Throwable_][]s.
-
-- Notes:
-
-    - **Handle all possible exceptions.** The logic calling the front
-      controller should not have to deal with any exceptions bubbling up from
-      it. The implementation may accomplish this by catching [_Throwable_][]
-      directly, by registering a [`set_exception_handler()`][] callback, or
-      by some other means.
-
 #### _FrontController_ Methods
 
 - ```php
@@ -52,6 +40,11 @@ layer in any execution context (HTTP, CLI, etc.).
 
         - Implementations MUST report non-success by returning an integer
           between `1` and `254` (inclusive).
+
+        - Implementations MUST gracefully handle all [_Throwable_][]s.
+
+        - Implementations MUST NOT [`exit()`][], [`die()`][], or otherwise
+          avoid returning.
 
     - Notes:
 
@@ -80,6 +73,23 @@ layer in any execution context (HTTP, CLI, etc.).
           [`exit()`][]: "Exit codes should be in the range 0 to 254, the
           exit code 255 is reserved by PHP and should not be used."
 
+        - **Handle all possible exceptions.** The logic calling the front
+          controller should not have to deal with any exceptions bubbling up
+          from it.
+
+        - **Graceful handling means returning, not exiting.** A "graceful"
+          handler catches the [_Throwable_][], turns it into a non-success
+          exit status, and returns that status from `run()` rather than
+          calling [`exit()`][].
+
+        - **Return the exit status; leave termination to the caller.**
+          The value of an exit status code comes from letting the caller
+          decide what to do with it: a worker loop, queue worker, or test
+          harness needs `run()` to hand control back so it can continue,
+          retry, or assert on the result. An implementation that calls
+          [`exit()`][] inside `run()` prevents those uses, terminating
+          the process before the caller regains control.
+
 ### _FrontTypeAliases_
 
 [_FrontTypeAliases_][] provides custom PHPStan types to aid static analysis.
@@ -104,9 +114,17 @@ Notes:
 
 The researched projects use one of six verbs for the front controller's main
 method: `dispatch()`, `execute()`, `handle()`, `__invoke()`, `run()`, or
-`start()`. Of these, `run()` is the clear majority at 12 of 23 projects;
+`start()`. Of these, `run()` is an outright majority at 12 of 23 projects;
 the remaining five verbs together account for the other 11. Front-Interop
 follows the majority practice.
+
+### Why an instance method?
+
+The interface declares `run()` as a non-static instance method. Of the 23
+researched projects, 21 invoke the front controller on an instance; only 2
+(leafphp and lithium) invoke it through a static call. An instance method also
+lets an implementation receive its dependencies through the constructor, as
+the reference implementations do.
 
 ### Why does `run()` return `int`?
 
@@ -140,7 +158,7 @@ Thus, contra the most common `void` or `null` return, Front-Interop directs that
 `run()` returns an integer exit status code. This is an unusual practice
 for front controllers in an HTTP execution context, but imposes only a trivial
 implementation burden. Doing so allows the same interface to be used across
-many different execution contexts, and keeps the interface machine-friendly.
+many execution contexts, and keeps the interface machine-friendly.
 
 ### Why handle all [_Throwable_][]s?
 
@@ -161,10 +179,10 @@ whether they are handled by the bootstrap script, or by the front controller
 proper.
 
 In the interest of keeping such handling within a class, Front-Interop directs
-that _FrontController_ itself must act as (or delegate to) a final backstop
-against [_Throwable_][]s. There may be other handling subsystems in the logic called
-by the _FrontController_, but any [_Throwable_][] that escapes them will be handled
-by the _FrontController_ or its delegate.
+that _FrontController_ itself must act as a final backstop against
+[_Throwable_][]s. There may be other handling subsystems in the logic called by
+the _FrontController_, but any [_Throwable_][] that escapes them will be handled
+by the _FrontController_.
 
 * * *
 
@@ -172,8 +190,8 @@ by the _FrontController_ or its delegate.
 [_FrontController_]: #frontcontroller
 [_FrontTypeAliases_]: #fronttypealiases
 [_Throwable_]: https://php.net/Throwable
+[`die()`]: https://php.net/die
 [`exit()`]: https://php.net/exit
-[`set_exception_handler()`]: https://php.net/set_exception_handler
 [`sysexits.h`]: https://man7.org/linux/man-pages/man3/sysexits.h.3head.html
 [BCP 14]: https://datatracker.ietf.org/doc/bcp14/
 [README-RESEARCH.md]: ./README-RESEARCH.md

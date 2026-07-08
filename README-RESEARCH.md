@@ -166,7 +166,74 @@ The projects each use some variation on this verb for the front controller main 
 | tempest   |              |             |            |              | x       |           |
 | yii       |              |             |            |              | x       |           |
 
-The term `run` is a clear majority at 12 uses; all other variations together number only 11.
+The term `run` is an outright majority at 12 uses; all other variations together number only 11.
+
+## Front Controller Exit
+
+Only one project (`tempest`) has a front controller that never returns control
+to its caller: its `run()` is declared `never` and terminates through the
+framework's shutdown path rather than a literal `exit()`/`die()` of its own.
+Every other surveyed front controller returns control to its caller.
+
+- `returns`: `run()` returns control to its caller; no `exit()`/`die()` appears
+  in the surveyed invocation path.
+- `caller exit()`: `run()` returns, but the immediate caller or runtime then
+  calls `exit()` — in `symfony`'s case, with the returned integer.
+- `no return`: `run()` does not return control to its caller, whether by
+  terminating the process itself or by never returning.
+
+|               | returns | caller `exit()` | no return     |
+| ------------- | ------- | --------------- | ------------- |
+| aura          | x       |                 |               |
+| bear (1)      | x       |                 |               |
+| cakephp       | x       |                 |               |
+| fatfree       | x       |                 |               |
+| flightphp (2) | x       |                 |               |
+| fuelphp       | x       |                 |               |
+| joomla        | x       |                 |               |
+| klein         | x       |                 |               |
+| kohana        | x       |                 |               |
+| laminas       | x       |                 |               |
+| laravel (3)   | x       |                 |               |
+| leafphp (3)   | x       |                 |               |
+| lightmvc      | x       |                 |               |
+| lithium       | x       |                 |               |
+| mezzio (3)    | x       |                 |               |
+| nette         | x       |                 |               |
+| phalcon       | x       |                 |               |
+| phpixie       | x       |                 |               |
+| silex (3)     | x       |                 |               |
+| slim          | x       |                 |               |
+| symfony       |         | x               |               |
+| tempest (4)   |         |                 | x             |
+| yii (3)       | x       |                 |               |
+
+Notes:
+
+(1) `bear` returns on the success path; its bootstrap `Throwable` catch arm
+calls `exit(1)` when handling an error.
+
+(2) `flightphp` returns on the success path; it falls back to `exit($msg)`
+only if sending the error response itself throws (a separate pre-flight
+`Flight::halt()` terminates before `start()` runs if `config.php` is
+missing).
+
+(3) Marked within the surveyed bootstrap-plus-one-hop scope; whether deeper
+framework infrastructure ultimately calls `exit()` was not examined.
+
+(4) `tempest`'s `run()` is declared `never` (cf. § *Front Controller Return*);
+it terminates through the framework's `Kernel::shutdown()`, not a literal
+`exit()`/`die()` of its own. Its bootstrap calls `exit()` after the invocation,
+though the `never` return makes that line unreachable.
+
+Of the 23 projects, 21 return control with no `exit()`/`die()` in the surveyed
+path. Of the remaining two, `symfony`'s `run()` also returns — its runtime then
+`exit()`s with the returned integer — while only `tempest`'s `run()` never
+returns control at all. No surveyed front controller calls `exit()`/`die()`
+on its own success path; the only self-reached exits happen inside exception
+handling — `bear`'s `Throwable` catch arm calls `exit(1)`, and `flightphp`'s
+registered exception handler falls back to `exit($msg)` when emitting the error
+response itself throws.
 
 ## Front Controller Return
 

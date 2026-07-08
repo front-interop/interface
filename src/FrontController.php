@@ -7,18 +7,6 @@ namespace FrontInterop\Interface;
  * [_FrontController_][] affords an entry point into the outermost presentation
  * layer in any execution context (HTTP, CLI, etc.).
  *
- * - Directives:
- *
- *     - Implementations MUST gracefully handle all [_Throwable_][]s.
- *
- * - Notes:
- *
- *     - **Handle all possible exceptions.** The logic calling the front
- *       controller should not have to deal with any exceptions bubbling up from
- *       it. The implementation may accomplish this by catching [_Throwable_][]
- *       directly, by registering a [`set_exception_handler()`][] callback, or
- *       by some other means.
- *
  * @phpstan-import-type front_exit_status_int from FrontTypeAliases
  */
 interface FrontController
@@ -32,6 +20,11 @@ interface FrontController
      *
      *     - Implementations MUST report non-success by returning an integer
      *       between `1` and `254` (inclusive).
+     *
+     *     - Implementations MUST gracefully handle all [_Throwable_][]s.
+     *
+     *     - Implementations MUST NOT [`exit()`][], [`die()`][], or otherwise
+     *       avoid returning.
      *
      * - Notes:
      *
@@ -59,6 +52,23 @@ interface FrontController
      *     - **The exit status code `255` is reserved by PHP itself.** Cf.
      *       [`exit()`][]: "Exit codes should be in the range 0 to 254, the
      *       exit code 255 is reserved by PHP and should not be used."
+     *
+     *     - **Handle all possible exceptions.** The logic calling the front
+     *       controller should not have to deal with any exceptions bubbling up
+     *       from it.
+     *
+     *     - **Graceful handling means returning, not exiting.** A "graceful"
+     *       handler catches the [_Throwable_][], turns it into a non-success
+     *       exit status, and returns that status from `run()` rather than
+     *       calling [`exit()`][].
+     *
+     *     - **Return the exit status; leave termination to the caller.**
+     *       The value of an exit status code comes from letting the caller
+     *       decide what to do with it: a worker loop, queue worker, or test
+     *       harness needs `run()` to hand control back so it can continue,
+     *       retry, or assert on the result. An implementation that calls
+     *       [`exit()`][] inside `run()` prevents those uses, terminating
+     *       the process before the caller regains control.
      *
      * @return front_exit_status_int
      */
