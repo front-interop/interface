@@ -9,8 +9,8 @@ namespace FrontInterop\Interface;
  * - ```
  *   front_exit_status_int int<0,254>
  *   ```
- *     - An `int` exit status code: `0` for success, `1` to `254` for
- *       non-success. The value `255` is reserved by PHP itself.
+ *     - An `int` exit status code: `0` for success, `1` to `254` otherwise.
+ *       The value `255` is reserved by PHP itself.
  *
  * @phpstan-type front_exit_status_int int<0,254>
  */

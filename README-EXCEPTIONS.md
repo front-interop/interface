@@ -1,34 +1,10 @@
 # Front Controller Exception Handling
 
 For each project, this section examines how exceptions and errors are handled
-at and around the front controller — specifically, the bootstrap script, the
+at and around the front controller, specifically the bootstrap script, the
 front controller class hosting the invocation, and (where relevant) the
 immediate framework error infrastructure they delegate to. Deeper framework
 internals are out of scope.
-
-- **Architectural locus varies enormously.** Catching happens at eight
-  distinct loci across the survey, from bootstrap script to deeply
-  nested framework event listeners. The diversity argues for a
-  permissive directive that does not dictate *where* catching lives.
-
-- **"Bootstrap configures, framework catches" is the dominant pattern.**
-  Most projects let the bootstrap configure catch infrastructure
-  (middleware, listeners, runners, auto-installing framework
-  constructors) while the actual `try`/`catch` lives one or more hops
-  deeper. Modern minimal bootstraps (laravel 12, mezzio 3,
-  symfony+runtime) push catching deeper still.
-
-- **Three projects ship without all-`Throwable` catching:** aura
-  (catches nothing), lithium (errors bootstrap commented out), and
-  phalcon (catches `Exception`, missing PHP `Error`s). fuelphp is
-  borderline — its bootstrap catches four specific `Http*Exception`
-  subtypes only.
-
-- **PHP global handler usage is rare and uneven.** Only fatfree,
-  flightphp, joomla, kohana (CLI branch), and lightmvc directly call
-  `set_*_handler` within bootstrap+one-hop scope. slim is the only
-  project using `register_shutdown_function` for error handling
-  specifically.
 
 ## Project Narratives
 
@@ -52,7 +28,7 @@ bootstrap wraps the front-controller invocation in a `try` block with three
 `set_exception_handler()`, `set_error_handler()`, or
 `register_shutdown_function()` is installed. The
 [`BEAR\Resource\Resource`](https://github.com/bearsunday/BEAR.Resource/blob/1.x/src/Resource.php)
-class hosting the call does no catching of its own — all exception handling
+class hosting the call does no catching of its own; all exception handling
 lives in the bootstrap.
 
 **cakephp.** The
@@ -61,7 +37,7 @@ bootstrap installs no error/exception handlers, sets no ini directives, and
 contains no `try`/`catch`; it just builds a `Server` around an
 `App\Application` and runs `$server->emit($server->run())`. The
 [`Cake\Http\Server::run()`](https://github.com/cakephp/cakephp/blob/5.x/src/Http/Server.php)
-method also does no catching — it builds and dispatches the middleware queue.
+method also does no catching; it builds and dispatches the middleware queue.
 The application's
 [`middleware()`](https://github.com/cakephp/app/blob/5.x/src/Application.php)
 registers `ErrorHandlerMiddleware` as the *outermost* layer of the queue with
@@ -76,14 +52,14 @@ bootstrap or the front controller class.
 bootstrap installs no error/exception handlers itself, sets only `DEBUG=1` on
 the framework instance, and contains no `try`/`catch` around `$f3->run()`.
 However,
-[`Base::instance()`](https://github.com/bcosca/fatfree-core/blob/master/base.php)
-— the framework class hosting `run()` — registers three handlers in its
+[`Base::instance()`](https://github.com/bcosca/fatfree-core/blob/master/base.php),
+the framework class hosting `run()`, registers three handlers in its
 constructor: a `set_exception_handler()` that funnels the throwable into
 `Base::error(500, ...)` with file, line, and trace; a `set_error_handler()`
 that, for errors matching `error_reporting()`, also funnels into
 `Base::error(500, ...)`; and `register_shutdown_function([$this, 'unload'],
-getcwd())` for framework cleanup. `Base::run()` itself has no `try`/`catch`
-— error/exception handling is entirely via the auto-installed handlers.
+getcwd())` for framework cleanup. `Base::run()` itself has no `try`/`catch`;
+error/exception handling is entirely via the auto-installed handlers.
 
 **flightphp.** The entry point
 [`public/index.php`](https://github.com/flightphp/skeleton/blob/master/public/index.php)
@@ -93,7 +69,7 @@ installs no exception/error handlers and contains no `try`/`catch` around
 `$app->start()` (though it does call `Flight::halt(500, ...)` if `config.php`
 is missing). One hop into the framework,
 [`flight\Engine::init()`](https://github.com/flightphp/core/blob/master/flight/Engine.php)
-conditionally — guarded by the `flight.handle_errors` config — registers
+conditionally, guarded by the `flight.handle_errors` config, registers
 `set_error_handler` and `set_exception_handler` pointing at the engine's own
 `handleError`/`handleException` methods. `handleException()` optionally
 `error_log()`s the throwable, then delegates to `_error()`, which fires a
@@ -113,11 +89,11 @@ installs no `set_exception_handler()`, `set_error_handler()`, or
 route; `HttpNotFoundException` → `_404_` route; `HttpServerErrorException`
 → `_500_` route. Each is dispatched as another `$routerequest()` call to the
 corresponding error-route closure. There is **no** general `Throwable` (or
-`Exception`) catch — anything outside those four types bubbles uncaught out
+`Exception`) catch; anything outside those four types bubbles uncaught out
 of the bootstrap. One hop into the framework,
 [`Fuel\Core\Request::execute()`](https://github.com/fuel/core/blob/1.8/master/classes/request.php)
 has its own `try`/`catch (\Exception $e)`, but only to reset request state
-and restore language config before rethrowing — it does not absorb
+and restore language config before rethrowing; it does not absorb
 exceptions.
 
 **joomla.** Joomla's bootstrap is split across multiple files: the entry
@@ -138,7 +114,7 @@ deprecation handler), and configures a Joomla `$errorHandler` whose
 `renderException` callback. No `register_shutdown_function()` calls appear
 in the bootstrap chain.
 
-**klein.** Klein has no canonical bootstrap script — it's a microframework
+**klein.** Klein has no canonical bootstrap script; it's a microframework
 where the user instantiates `Klein` directly and calls `$klein->dispatch()`.
 The relevant exception handling lives entirely in
 [`Klein\Klein::dispatch()`](https://github.com/klein/klein.php/blob/master/src/Klein/Klein.php),
@@ -157,10 +133,10 @@ registration.
 [`index.php`](https://github.com/kohana/kohana/blob/3.3/master/index.php)
 bootstrap sets `error_reporting(E_ALL | E_STRICT)` but installs no
 `set_exception_handler()`, `set_error_handler()`, or
-`register_shutdown_function()` of its own — except in the CLI/Minion branch,
+`register_shutdown_function()` of its own, except in the CLI/Minion branch,
 which registers `set_exception_handler(['Minion_Exception', 'handler'])`. The
-HTTP branch — `echo Request::factory(TRUE, array(), FALSE)->execute()->send_headers(TRUE)->body()`
-— has no `try`/`catch`. One hop in,
+HTTP branch, `echo Request::factory(TRUE, array(), FALSE)->execute()->send_headers(TRUE)->body()`,
+has no `try`/`catch`. One hop in,
 [`application/bootstrap.php`](https://github.com/kohana/kohana/blob/3.3/master/application/bootstrap.php)
 calls `Kohana::init([...])`; the framework's own `init()` (per its documented
 `errors => TRUE` default) is what wires up error/exception handling
@@ -171,8 +147,8 @@ or handler registrations.
 [`public/index.php`](https://github.com/laminas/laminas-mvc-skeleton/blob/2.5.x/public/index.php)
 bootstrap installs no error/exception handlers, sets no ini directives, and
 contains no `try`/`catch` around `$app->run()` (it does
-`throw new RuntimeException(...)` if the `Application` class can't be loaded
-— a pre-flight check, not exception handling). One hop into the framework,
+`throw new RuntimeException(...)` if the `Application` class can't be loaded,
+which is a pre-flight check, not exception handling). One hop into the framework,
 [`Laminas\Mvc\Application::run()`](https://github.com/laminas/laminas-mvc/blob/master/src/Application.php)
 also has no `try`/`catch`, no
 `set_exception_handler`/`set_error_handler`/`register_shutdown_function`
@@ -205,7 +181,7 @@ env vars via `\Leaf\Core::loadApplicationEnv()`, and calls
 `register_shutdown_function`, no ini changes. One hop into the framework,
 [`\Leaf\Core::runApplication()`](https://github.com/leafsphp/mvc-core/blob/main/src/Core.php)
 just registers controller namespaces, requires the route files, and calls
-`app()->run()` — also with no `try`/`catch` or handler installations.
+`app()->run()`, also with no `try`/`catch` or handler installations.
 Whatever exception handling Leaf provides lives in the underlying
 `Leaf\App::run()`, beyond the one-hop scope.
 
@@ -234,7 +210,7 @@ with no `try`/`catch` and no handler installations. The required
 `config/bootstrap.php` does not call `set_*_handler`,
 `register_shutdown_function`, `ini_set`, or `error_reporting`; it loads
 `bootstrap/libraries.php` and `bootstrap/action.php` (plus `cache.php` /
-`console.php` per SAPI) — and notably the line that would load
+`console.php` per SAPI), and the line that would load
 `bootstrap/errors.php` is **commented out by default**. One hop into the
 framework,
 [`lithium\action\Dispatcher::run()`](https://github.com/UnionOfRAD/lithium/blob/1.2/action/Dispatcher.php)
@@ -253,7 +229,7 @@ bootstrap (a self-executing closure) loads the container, builds the
 is a one-liner (`$this->runner->run()`). The catch layer is in the
 middleware pipeline, configured by
 [`config/pipeline.php`](https://github.com/mezzio/mezzio-skeleton/blob/3.18.x/config/pipeline.php),
-which pipes `ErrorHandler::class` as the first (outermost) middleware —
+which pipes `ErrorHandler::class` as the first (outermost) middleware,
 explicitly to "catch all Exceptions" thrown by inner middleware.
 
 **nette.** The
@@ -264,9 +240,9 @@ bootstrap autoloads, builds the DI container via `App\Bootstrap`, retrieves
 bootstrap itself. One hop into the framework,
 [`Nette\Application\Application::run()`](https://github.com/nette/application/blob/master/src/Application/Application.php)
 wraps its work in a top-level `try`/`catch (\Throwable $e)`: on a caught
-throwable it `sendHttpCode($e)`, fires `$this->onError` callbacks, and — if
+throwable it `sendHttpCode($e)`, fires `$this->onError` callbacks, and, if
 `$this->catchExceptions` is true and an error request can be constructed
-(typically via `ErrorPresenter` / `error4xxPresenter`) — re-processes the
+(typically via `ErrorPresenter` / `error4xxPresenter`), re-processes the
 request via `processRequest($req)` to render an error page, with a nested
 inner `try`/`catch (\Throwable)` to absorb any failure during error
 rendering. If error-rendering is disabled or fails, the original exception
@@ -275,8 +251,8 @@ is rethrown after firing `onShutdown`.
 **phalcon.** The
 [`public/index.php`](https://github.com/phalcon/tutorial/blob/master/public/index.php)
 bootstrap sets up DI services and autoloading, then wraps the
-front-controller invocation in `try`/`catch (Exception $e)`, which simply
-`echo "Exception: ", $e->getMessage()` on any caught exception. Notably: the
+front-controller invocation in `try`/`catch (Exception $e)` that does
+`echo "Exception: ", $e->getMessage()` on any caught exception. Note that the
 catch is for `Exception`, not `Throwable`, so PHP `Error`s would not be
 caught. There is no general `Throwable` arm, no `set_*_handler`, no
 `register_shutdown_function`, no ini changes. The framework class hosting
@@ -291,10 +267,10 @@ instantiates `\App\Pixie`, and calls
 `$pixie->bootstrap($root)->http_request()->execute()->send_headers()->send_body()`.
 No `try`/`catch`, no `set_*_handler`, no `register_shutdown_function`, no ini
 changes. Whatever exception handling phpixie provides lives in the
-framework's `Pixie` / request / execute chain — beyond the bootstrap and
+framework's `Pixie` / request / execute chain, beyond the bootstrap and
 the immediate one-hop scope.
 
-**silex.** Silex has no bootstrap script in the traditional sense — its
+**silex.** Silex has no bootstrap script in the traditional sense; its
 [README example](https://github.com/silexphp/Silex?tab=readme-ov-file#silex-a-simple-web-framework)
 shows `$app = new Silex\Application(); ... $app->run();`. The
 `Silex\Application` constructor registers `ExceptionHandlerServiceProvider`,
@@ -302,7 +278,7 @@ which wires in error-handler infrastructure on top of Symfony HttpKernel.
 [`Application::run()`](https://github.com/silexphp/Silex/blob/master/src/Silex/Application.php)
 calls `handle()` then `send()` then `terminate()`; `handle()` itself
 delegates to `$this['kernel']->handle($request, $type, $catch)` with the
-standard Symfony HttpKernel `$catch = true` default — meaning HttpKernel
+standard Symfony HttpKernel `$catch = true` default, meaning HttpKernel
 catches exceptions and dispatches `kernel.exception` listeners. User error
 handlers are registered via Silex's `error()` method (which adds listeners
 to that event). No direct `set_*_handler` or `register_shutdown_function`
@@ -318,7 +294,7 @@ container, instantiates the Slim app, instantiates a custom
 `$app->addErrorMiddleware($displayErrorDetails, $logError, $logErrorDetails)`
 and sets the `HttpErrorHandler` as the middleware's default error handler,
 before running `$app->handle($request)` and emitting. No `try`/`catch` is
-needed at the bootstrap level — error handling is layered via the shutdown
+needed at the bootstrap level; error handling is layered via the shutdown
 handler (catches PHP fatal errors via the registered shutdown function) and
 the error middleware (catches exceptions in the Slim middleware pipeline).
 No `set_exception_handler()` or `set_error_handler()` calls are made.
@@ -345,7 +321,7 @@ bootstrap autoloads, calls `HttpApplication::boot(...)->run()`, and then
 `register_shutdown_function`. One hop into the framework,
 [`HttpApplication::run()`](https://github.com/tempestphp/tempest-framework/blob/3.x/packages/router/src/HttpApplication.php)
 gets the router, request factory, and response sender from the container,
-dispatches the request, sends the response, and shuts down the kernel —
+dispatches the request, sends the response, and shuts down the kernel,
 also with no `try`/`catch` or handler installations of its own. (The
 framework's `Tempest::boot()` method, which `HttpApplication::boot()`
 delegates to, may register handlers during container construction, but
@@ -381,41 +357,46 @@ handlers in the framework constructor or init (fatfree, flightphp); event
 listeners on a `kernel.exception`-style event deeper than one hop
 (laminas, silex, symfony); deferred entirely to deeper framework
 infrastructure beyond one hop (kohana, laravel, leafphp, phpixie,
-tempest); and nothing in scope at all (aura; lithium — though lithium's
+tempest); and nothing in scope at all (aura; lithium, though lithium's
 `bootstrap/errors.php` ships commented out, opt-in only). The directive's
-permissiveness about *where* matches the survey's diversity — every
-architectural choice listed above (other than "nothing") would satisfy
-"MUST handle all `Throwable`s" without dictating a specific structure.
+permissiveness about *where* matches the survey's diversity; every
+architectural choice listed above, other than "nothing" and the
+auto-installed global handlers, would satisfy "MUST NOT allow a
+`Throwable` to escape `run()`" without dictating a specific structure. A
+global handler cannot: it fires only once the stack has unwound past the
+front controller, by which point the `Throwable` has already escaped.
 
-**Failure modes the directive prevents.** Three cases would fail the
+**Failure modes the directive prevents.** Five cases would fail the
 directive as the skeleton is shipped: aura, which catches nothing within
 bootstrap+one-hop scope and lets exceptions bubble to PHP's default
 handler; lithium, which similarly ships with no error infrastructure
-enabled (`bootstrap/errors.php` is commented out, opt-in only); and
-phalcon, whose bootstrap catches `Exception` but not `Throwable`, so PHP
-`Error`s slip through. fuelphp is borderline — its bootstrap catches
-four specific `HttpException` subtypes and lets anything else bubble, so
-most `Throwable`s pass through unhandled. The phrasing "all `Throwable`s"
-(rather than "all exceptions") is what rules out phalcon's case
+enabled (`bootstrap/errors.php` is commented out, opt-in only); phalcon,
+whose bootstrap catches `Exception` but not `Throwable`, so PHP `Error`s
+slip through; and fatfree and flightphp, whose only handling is an
+auto-installed global handler, which fires only after the `Throwable`
+has escaped. fuelphp is borderline; its bootstrap catches four specific
+`HttpException` subtypes and lets anything else bubble, so most
+`Throwable`s pass through unhandled. The phrasing "a `Throwable`"
+(rather than "an exception") is what rules out phalcon's case
 specifically.
 
 **"Bootstrap configures, framework catches" is the dominant pattern.**
 The majority of surveyed projects follow it: the bootstrap script's job
-is to *configure* the catching infrastructure — register middleware,
-instantiate runners, build a container that supplies error handlers,
-wire up event listeners, or simply instantiate a framework whose
-constructor auto-installs handlers — but the actual `try`/`catch` lives
-one or more hops deeper than the bootstrap. This means modern frameworks
-already satisfy a front-controller-handles-`Throwable`s directive
+is to *configure* the catching infrastructure by registering middleware,
+instantiating runners, building a container that supplies error handlers,
+wiring up event listeners, or instantiating a framework whose
+constructor auto-installs handlers, but the actual `try`/`catch` lives
+one or more hops deeper than the bootstrap. Where that machinery is a
+real `try`/`catch`, modern frameworks already satisfy the directive
 trivially: an implementer's `FrontController::run()` need only delegate
-to the framework's existing catch machinery.
+to it. Where it is a global handler instead, delegating is not enough.
 
 **Bootstrap-script richness correlates with explicit handling.** Minimal
 bootstraps (aura, laminas, laravel, leafphp, mezzio, phpixie, symfony's
 demo, tempest, yii) defer entirely or near-entirely to framework
 infrastructure for error handling. Rich bootstraps (bear, fuelphp,
 lightmvc, phalcon, slim) do explicit work that often includes catching.
-The modern trajectory — laravel 12 / mezzio 3 / symfony+runtime — is
+The modern trajectory (laravel 12 / mezzio 3 / symfony+runtime) is
 toward minimal bootstraps with catching pushed deeper, consistent with a
 directive that permits any catch locus.
 
@@ -446,13 +427,13 @@ Where catching happens. Each project falls in exactly one bucket.
 
 Columns:
 
-- `none` — no exception/error handling exists for the project, even beyond one-hop scope.
-- `bootstrap` — catching occurs in the bootstrap script itself.
-- `front` — catching occurs inside the front-controller class's own method.
-- `middleware` — catching is performed by error middleware or a framework error-handler component wired in by the bootstrap.
-- `handlers` — PHP global handlers are registered by the framework's constructor or `init` method.
-- `listeners` — catching is performed via event listeners on a `kernel.exception`-style event, deeper than one hop.
-- `other` — catching occurs anywhere not covered above; typically deeper in the framework, either visible one hop in (e.g., a runner class) or deferred entirely beyond one-hop scope.
+- `none`: no exception/error handling exists for the project, even beyond one-hop scope.
+- `bootstrap`: catching occurs in the bootstrap script itself.
+- `front`: catching occurs inside the front-controller class's own method.
+- `middleware`: catching is performed by error middleware or a framework error-handler component wired in by the bootstrap.
+- `handlers`: PHP global handlers are registered by the framework's constructor or `init` method.
+- `listeners`: catching is performed via event listeners on a `kernel.exception`-style event, deeper than one hop.
+- `other`: catching occurs anywhere not covered above; typically deeper in the framework, either visible one hop in (e.g., a runner class) or deferred entirely beyond one-hop scope.
 
 |           | none | bootstrap | front | middleware | handlers | listeners | other |
 | --------- | ---- | --------- | ----- | ---------- | -------- | --------- | ----- |
@@ -486,13 +467,13 @@ How catching is implemented. A project may use more than one mechanism.
 
 Columns:
 
-- `try`/`catch` — an explicit `try`/`catch` block in the surveyed code.
-- `set_exception_handler` — PHP's global exception handler is registered.
-- `set_error_handler` — PHP's global error handler is registered.
-- `register_shutdown_function` — PHP's shutdown function is registered for error handling specifically.
-- `middleware` — error middleware or a framework error-handler component performs the catch.
-- `event listener` — a framework event listener (e.g., `kernel.exception`) performs the catch.
-- `none in scope` — no catching mechanism exists within the surveyed bootstrap+one-hop scope.
+- `try`/`catch`: an explicit `try`/`catch` block in the surveyed code.
+- `set_exception_handler`: PHP's global exception handler is registered.
+- `set_error_handler`: PHP's global error handler is registered.
+- `register_shutdown_function`: PHP's shutdown function is registered for error handling specifically.
+- `middleware`: error middleware or a framework error-handler component performs the catch.
+- `event listener`: a framework event listener (e.g., `kernel.exception`) performs the catch.
+- `none in scope`: no catching mechanism exists within the surveyed bootstrap+one-hop scope.
 
 |             | `try`/`catch` | `set_exception_handler` | `set_error_handler` | `register_shutdown_function` | middleware | event listener | none in scope |
 | ----------- | ------------- | ----------------------- | ------------------- | ---------------------------- | ---------- | -------------- | ------------- |
@@ -541,7 +522,7 @@ production environment, as a no-op suppressor for errors when
 `error_reporting()` returns 0.
 
 `fatfree` also calls `register_shutdown_function`, but for framework
-cleanup rather than error handling — so it is not marked in that
+cleanup rather than error handling, so it is not marked in that
 column. `slim` is the only project in the survey using
 `register_shutdown_function` for error handling specifically.
 
@@ -553,10 +534,10 @@ behavior, with footnote (2) flagging the out-of-scope caveat.
 
 Columns:
 
-- all `Throwable` — anything implementing `Throwable` is caught (both `Exception`s and `Error`s).
-- `Exception` only — `Exception`s are caught but `Error`s slip through.
-- specific subtypes only — only specific `Throwable` subtypes are caught (e.g., particular `Http*Exception`s); anything else bubbles.
-- `none` — no catching at all, in scope or beyond.
+- all `Throwable`: anything implementing `Throwable` is caught (both `Exception`s and `Error`s).
+- `Exception` only: `Exception`s are caught but `Error`s slip through.
+- specific subtypes only: only specific `Throwable` subtypes are caught (e.g., particular `Http*Exception`s); anything else bubbles.
+- `none`: no catching at all, in scope or beyond.
 
 |             | all `Throwable` | `Exception` only | specific subtypes only | none |
 | ----------- | --------------- | ---------------- | ---------------------- | ---- |
@@ -595,3 +576,102 @@ documented framework behavior; the per-project paragraph above flags
 the out-of-scope locus.
 
 (3) `lightmvc` catching applies only in the production environment.
+
+## Handler Registration Beyond One Hop
+
+The tables above observe the scope stated at the head of this document:
+bootstrap, the front controller class, and the immediate error infrastructure
+they delegate to. Within that scope, six projects register a global handler.
+
+Looking one level further, into the framework packages each project depends
+on, gives a different picture. It is recorded separately here rather than
+folded into the tables above, which remain scoped as described.
+
+Columns:
+
+- `registers`: the project registers `set_exception_handler`,
+  `set_error_handler`, or `register_shutdown_function` somewhere in its
+  dependency stack.
+- `prevents return`: a `Throwable` reaching that handler would stop the front
+  controller's main method from returning to its caller.
+- `returns anyway`: the handler exists but the main method still returns.
+- `undetermined`: registration confirmed, effect on the return not traced.
+
+|             | registers | prevents return | returns anyway | undetermined |
+| ----------- | --------- | --------------- | -------------- | ------------ |
+| aura        |           |                 |                |              |
+| bear        |           |                 |                |              |
+| cakephp     | x         |                 |                | x            |
+| fatfree     | x         |                 |                | x            |
+| flightphp   | x (1)     |                 |                | x            |
+| fuelphp     | x         | x               |                |              |
+| joomla      | x (2)     |                 |                | x            |
+| klein       | x         |                 |                | x            |
+| kohana      | x (3)     |                 |                | x            |
+| laminas     |           |                 |                |              |
+| laravel     | x         |                 |                | x            |
+| leafphp     | x         | x               |                |              |
+| lightmvc    | x (4)     | x (4)           | x (4)          |              |
+| lithium     | x         |                 |                | x            |
+| mezzio      | x (5)     |                 | x              |              |
+| nette       | x         |                 |                | x            |
+| phalcon     | x (6)     |                 | x              |              |
+| phpixie     | x         | x (7)           |                |              |
+| silex       | x (8)     | x               |                |              |
+| slim        | x         | x (9)           |                |              |
+| symfony     | x         |                 |                | x            |
+| tempest     | x (10)    | x               |                |              |
+| yii         | x         |                 |                | x            |
+
+Notes:
+
+(1) The `flightphp` registration is conditional on the `flight.handle_errors`
+config.
+
+(2) The `joomla` registration is wired indirectly by Symfony's
+`ErrorHandler::register()` rather than by Joomla bootstrap directly.
+
+(3) The `kohana` registration appears only in the CLI/Minion branch; the HTTP
+path defers to `Kohana::init()`.
+
+(4) The `lightmvc` behavior splits on environment. In production a
+`set_error_handler` is registered whose body does nothing, and the bootstrap
+`try`/`catch` still receives the `Throwable`. Outside production, Whoops is
+registered with `allowQuit(true)` and terminates.
+
+(5) The `mezzio` registration is request-scoped rather than global.
+Stratigility's `ErrorHandler` middleware registers `set_error_handler` at the
+top of `process()`, converts errors to `ErrorException`, catches them itself,
+and restores the previous handler in a `finally`.
+
+(6) The `phalcon` registrations live in `Phalcon\Support\Debug` and take
+effect only if `Debug::listen()` is called, which the surveyed application
+never does.
+
+(7) The `phpixie` effect depends on the entry path. The sample application's
+`web/index.php` chains its calls with no `try`/`catch`, so a converted error
+escapes; `Pixie::handle_http_request()` catches and returns.
+
+(8) The `silex` registration is via Monolog and gated on
+`monolog.use_error_handler`, which defaults to production only.
+
+(9) The `slim` registration is a `register_shutdown_function` in the skeleton
+entry script; it fires only for fatals the error middleware cannot catch.
+
+(10) The `tempest` registrations are skipped when the environment is testing.
+
+Of the 23 projects, 20 register at least one of the three functions somewhere.
+Only `aura`, `bear`, and `laminas` register none; the first two catch with an
+ordinary `try`/`catch`, and `laminas` through MVC events.
+
+Registration alone does not determine the outcome. Most of the 20 use the
+handler as a backstop beneath a normal catching path, and the front controller
+returns on every ordinary request. The effect was traced for nine of the 20:
+six would prevent a return, two would not, and one splits by environment. The
+remaining eleven are recorded as undetermined rather than assumed either way.
+
+Several handlers terminate deliberately rather than letting PHP terminate
+after them: Monolog's ends in `exit(255)`, and the Whoops variants used by
+`leafphp` and `lightmvc` exit through `allowQuit`. The `mezzio` project
+registers a handler and still returns, by scoping the registration to a single
+`process()` call and restoring the previous handler in a `finally`.

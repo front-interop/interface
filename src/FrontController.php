@@ -16,15 +16,26 @@ interface FrontController
      *
      * - Directives:
      *
-     *     - Implementations MUST report success by returning an integer `0`.
+     *     - Implementations MUST return a value between `0` and `254`
+     *       (inclusive).
      *
-     *     - Implementations MUST report non-success by returning an integer
-     *       between `1` and `254` (inclusive).
+     *     - Implementations MUST return a value of `0` to report success.
      *
-     *     - Implementations MUST gracefully handle all [_Throwable_][]s.
+     *     - Implementations MUST return a value between `1` and `254`
+     *       (inclusive) to report a negative outcome.
      *
-     *     - Implementations MUST NOT [`exit()`][], [`die()`][], or otherwise
-     *       avoid returning.
+     *     - Implementations SHOULD return a value of `1` to report an
+     *       ordinary negative outcome.
+     *
+     *     - Implementations MAY return a value between `2` and `254`
+     *       (inclusive) to distinguish among negative outcomes; the meanings
+     *       of such values are explicitly undefined herein.
+     *
+     *     - Implementations MUST NOT terminate the process in place of
+     *       returning from `run()`, whether by [`exit()`][], [`die()`][], or
+     *       otherwise.
+     *
+     *     - Implementations MUST NOT allow a [_Throwable_][] to escape `run()`.
      *
      * - Notes:
      *
@@ -33,42 +44,30 @@ interface FrontController
      *       that invoked `run()` (bootstrap scripts, test harnesses, etc.),
      *       and may ultimately be received by a parent process (shell,
      *       supervisor, init system, CI runner, monitoring tool, or
-     *       similar) via [`exit()`][]. Whether or not the exit status
-     *       is consumed by the calling code or parent process depends
-     *       on the execution environment: php-fpm and mod_php typically
-     *       have no consumer, whereas worker loops, supervised long-running
-     *       processes, runtime layers, and CI harnesses do.
+     *       similar) via [`exit()`][].
      *
-     *     - **"Success" and "non-success" are context-dependent.** In an HTTP
-     *       context, "success" typically means that the request was
-     *       processed and a response was emitted regardless of the HTTP
-     *       status code, whereas "non-success" may indicate that a
-     *       [_Throwable_][] had to be handled by the _FrontController_
-     *       itself. In a command line context, "success" typically
-     *       means that the command completed without errors, whereas
-     *       "non-success" may be one of several error conditions
-     *       (cf. the [`sysexits.h`][] conventions where applicable).
+     *     - **What counts as success is context-dependent.** In an HTTP
+     *       context, returning `0` typically means that the request was
+     *       processed and a response was emitted regardless of the HTTP status
+     *       code. In a command line context, returning `0` typically means the
+     *       command completed its work.
      *
-     *     - **The exit status code `255` is reserved by PHP itself.** Cf.
-     *       [`exit()`][]: "Exit codes should be in the range 0 to 254, the
-     *       exit code 255 is reserved by PHP and should not be used."
+     *     - **A negative outcome is not always an error.** A non-`0` return
+     *       value reports something other than success: usually an error
+     *       condition, but perhaps a partial failure, an empty result, or any
+     *       other outcome the implementation wants to distinguish. Which of
+     *       these counts as the ordinary negative outcome, if any, is
+     *       implementation-specific.
      *
-     *     - **Handle all possible exceptions.** The logic calling the front
-     *       controller should not have to deal with any exceptions bubbling up
-     *       from it.
+     *     - **A caught [_Throwable_][] does not require a non-`0` return.**
+     *       For example, a front controller that catches a [_Throwable_][]
+     *       and emits an HTTP `500` has arguably done its work, and may
+     *       return `0`; another may hold that emitting that `500` is itself
+     *       a negative outcome and return `1`.
      *
-     *     - **Graceful handling means returning, not exiting.** A "graceful"
-     *       handler catches the [_Throwable_][], turns it into a non-success
-     *       exit status, and returns that status from `run()` rather than
-     *       calling [`exit()`][].
-     *
-     *     - **Return the exit status; leave termination to the caller.**
-     *       The value of an exit status code comes from letting the caller
-     *       decide what to do with it: a worker loop, queue worker, or test
-     *       harness needs `run()` to hand control back so it can continue,
-     *       retry, or assert on the result. An implementation that calls
-     *       [`exit()`][] inside `run()` prevents those uses, terminating
-     *       the process before the caller regains control.
+     *     - **The caller receives a return value, never a [_Throwable_][].**
+     *       That holds for a [_Throwable_][] thrown from within a `catch`
+     *       block as well as for the one that the `catch` was handling.
      *
      * @return front_exit_status_int
      */

@@ -178,7 +178,7 @@ Every other surveyed front controller returns control to its caller.
 - `returns`: `run()` returns control to its caller; no `exit()`/`die()` appears
   in the surveyed invocation path.
 - `caller exit()`: `run()` returns, but the immediate caller or runtime then
-  calls `exit()` — in `symfony`'s case, with the returned integer.
+  calls `exit()`, in `symfony`'s case with the returned integer.
 - `no return`: `run()` does not return control to its caller, whether by
   terminating the process itself or by never returning.
 
@@ -226,14 +226,18 @@ it terminates through the framework's `Kernel::shutdown()`, not a literal
 `exit()`/`die()` of its own. Its bootstrap calls `exit()` after the invocation,
 though the `never` return makes that line unreachable.
 
-Of the 23 projects, 21 return control with no `exit()`/`die()` in the surveyed
-path. Of the remaining two, `symfony`'s `run()` also returns — its runtime then
-`exit()`s with the returned integer — while only `tempest`'s `run()` never
-returns control at all. No surveyed front controller calls `exit()`/`die()`
-on its own success path; the only self-reached exits happen inside exception
-handling — `bear`'s `Throwable` catch arm calls `exit(1)`, and `flightphp`'s
-registered exception handler falls back to `exit($msg)` when emitting the error
-response itself throws.
+Of the 23 projects, 21 return control on the success path with no
+`exit()`/`die()`. Of the remaining two, `symfony`'s `run()` also returns (its
+runtime then `exit()`s with the returned integer), while only `tempest`'s
+`run()` never returns control at all. The exits that do appear are reached
+while handling an error: `bear`'s bootstrap catch arm calls `exit(1)`, and
+`flightphp`'s registered exception handler falls back to `exit($msg)` when
+emitting the error response itself throws. Only `bear`'s sits outside the
+front controller; `flightphp` registers its handler from
+`flight\Engine::init()` and reaches the fallback through `_error()`, both
+methods of the class whose `start()` is the surveyed front controller.
+Earlier still, its bootstrap calls `Flight::halt(500, ...)` before `start()`
+runs when `config.php` is missing.
 
 ## Front Controller Return
 
@@ -241,6 +245,7 @@ The project front controllers most often return nothing at all; some return a
 response to be sent by the bootstrap script, and one (`symfony`) returns an
 integer exit code. Note that just because the front controller returns something
 does not mean the bootstrap code actually does anything with that value.
+Projects with union return types are marked in more than one column.
 
 |           | `null`/`void` | Response | `int` | `never` | other |
 | --------- | ------------- | -------- | ----- | ------- | ----- |
