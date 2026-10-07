@@ -49,12 +49,12 @@ layer in any execution context (HTTP, CLI, etc.).
           ordinary negative outcome.
 
         - Implementations MAY return a value between `2` and `254`
-          (inclusive) to distinguish among negative outcomes; the meanings
-          of such values are explicitly undefined herein.
+          (inclusive) to distinguish among negative outcomes other than the
+          ordinary one; the meanings of such values are explicitly undefined
+          herein.
 
-        - Implementations MUST NOT terminate the process in place of
-          returning from `run()`, whether by [`exit()`][], [`die()`][], or
-          otherwise.
+        - Implementations MUST NOT end the execution of `run()` by calling
+          [`exit()`][] or [`die()`][].
 
         - Implementations MUST NOT allow a [_Throwable_][] to escape `run()`.
 
@@ -164,18 +164,19 @@ source reserves `1` "for environment constraints not matched" and puts its
 ordinary outcome, files needing fixing, at `8`. Those two exceptions are why
 Front-Interop recommends `1` rather than requiring it.
 
-The projects do not agree on what kind of thing that ordinary outcome is.
-Test runners give the low values to the finding, and push tool errors above
-them; for example, `phpunit` reports failing tests with `1` and `2`, and
-reserves `255` for a fault in PHPUnit itself. Analysis tools do the reverse:
-`psalm` exits `1` "when there was a problem running Psalm" and `2` "when it
-completed successfully but found some issues".
+The projects differ on what the ordinary outcome is because they do different
+kinds of work. Test runners give the low values to the finding, and push tool
+errors above them; for example, `phpunit` reports failing tests with `1` and
+`2`, and reserves `255` for a fault in PHPUnit itself. Analysis tools do the
+reverse: `psalm` exits `1` "when there was a problem running Psalm" and `2`
+"when it completed successfully but found some issues".
 
-Front-Interop therefore recommends the value but not its meaning. A `1` reports
-whichever negative outcome an implementation treats as ordinary, and the
-interface does not say which that must be. For some implementations it may be
-a [_Throwable_][] they had to handle themselves; for others, such as those
-handling queries, it may be an empty result.
+Front-Interop therefore recommends the value and leaves the meaning to each
+implementation. A `1` reports whichever negative outcome an implementation
+treats as ordinary, and the interface does not say which that must be. For
+some implementations it may be a [_Throwable_][] they had to handle
+themselves; for others, such as those handling queries, it may be an empty
+result.
 
 ### Why leave exit status codes `2` through `254` undefined?
 
@@ -186,13 +187,12 @@ at `126` and above, and four define nothing above `1` at all; `tempest` is
 counted in two of those groups, so the five figures cover 17 distinct
 schemes.
 
-Sequential values are a bare majority, but agreeing on a *value* is not agreeing
-on a *meaning*. Among the projects that define `2`, it means invalid input to
-`symfony` and `tempest`, a test that errored to `phpunit`, issues found to
-`psalm`, a rule violation to `phpmd`, a dependency solving failure to
-`composer`, and an unused result cache to `phpstan`. Codifying the shape would
-give a caller a portable value with no portable meaning. The interface
-therefore leaves `2` through `254` explicitly undefined.
+Sequential values are a bare majority, but the projects that use them do not
+agree on what `2` means. It means invalid input to `symfony` and `tempest`, a
+test that errored to `phpunit`, issues found to `psalm`, a rule violation to
+`phpmd`, a dependency solving failure to `composer`, and an unused result cache
+to `phpstan`. A caller could not rely on what `2` means, so the interface
+leaves `2` through `254` explicitly undefined.
 
 What a consumer can rely on portably is the distinction between `0` and
 everything else; the meaning of any particular non-`0` value is determined by
@@ -205,26 +205,24 @@ ceiling comes from PHP rather than from practice; cf. [`exit()`][]: "Exit
 codes should be in the range 0 to 254, the exit code 255 is reserved by PHP
 and should not be used."
 
-Surveyed practice runs the other way. Of the projects in
-[README-RETURNS.md][], the three that police the range all admit `255`, and
-`phpunit` occupies it, defining `Result::CRASH` as `255` for a fault in
-PHPUnit itself. No surveyed project stops at `254`.
+Surveyed practice differs. Three of the projects in [README-RETURNS.md][]
+check the range of exit codes, and all three allow `255`. The `phpunit`
+project goes further: it defines `Result::CRASH` as `255` and exits with it
+when PHPUnit itself fails. No surveyed project stops at `254`.
 
 Front-Interop defers to PHP, for a reason particular to a front controller.
 With no handler registered, PHP exits `255` when a [_Throwable_][] escapes
 uncaught, so `255` is already the signal that something reached the top of
-the stack unhandled. A front controller returning `255` deliberately would
+the stack unhandled. A front controller intentionally returning `255` would
 be indistinguishable from one that failed to return at all, which is the
 outcome the directives exist to prevent.
 
-That signal stays available after `run()` has returned. A [_Throwable_][]
-arising once the front controller has finished executing, from the destructor
-of an object it held, released only after `run()` had returned, is beyond the
-reach of any `try` the implementation could write, and so beyond the reach of
-the directives. A run
-that reported `0` can therefore still end in a `255` process status: the two
-answer different questions, one about the work `run()` did, the other about
-how the process ended.
+That signal can still appear after `run()` has returned. An object that the
+front controller held may be released only after `run()` returns. If the
+destructor of that object throws a [_Throwable_][], no `try` in the
+implementation can catch it, and the directives do not cover it. A run that
+reported `0` can therefore still end with a `255` process status. The return
+value says what `run()` did; the process status says how the process ended.
 
 ### Why must implementations return rather than exit?
 
@@ -234,12 +232,10 @@ success path with no [`exit()`][] or [`die()`][]. Of the remaining two,
 returned integer, while only `tempest`'s never returns control at all.
 
 Front-Interop directs that implementations return rather than exit, as the
-majority already do. The value of an exit status code comes from letting the
-caller decide what to do with it. A worker loop, queue worker, or test
-harness needs `run()` to hand control back so it can continue, retry, or
-assert on the result. An implementation that calls [`exit()`][] inside
-`run()` prevents those uses, terminating the process before the caller
-regains control.
+majority already do. A worker loop, queue worker, or test harness needs `run()`
+to hand control back so it can continue, retry, or assert on the result. An
+implementation that calls [`exit()`][] inside `run()` ends the script before the
+caller gets control back, so the caller never sees the status.
 
 ### Why must no [_Throwable_][] escape `run()`?
 
@@ -259,13 +255,12 @@ the final backstop. Other handling subsystems can exist in the logic it calls;
 anything escaping them stops at the _FrontController_ rather than reaching
 the caller.
 
-A handler registered with [`set_exception_handler()`][] cannot substitute for
-that backstop. PHP discards a handler's return value, so a handler that
-returns a status still leaves the process exiting `0`; and `run()` has already
-unwound by the time the handler fires, so the caller of `run()` never regains
-control. The only
-mechanism left is to call [`exit()`][], which terminates the process before
-the caller can act on the status.
+A handler registered with [`set_exception_handler()`][] cannot take the place
+of that backstop. PHP discards the value the handler returns, so the exit
+status is `0` whatever the handler returns. By the time the handler runs,
+`run()` has already unwound, and the caller never gets control back. The
+handler could call [`exit()`][] with a status, but that ends the script before
+the caller can act on it.
 
 * * *
 

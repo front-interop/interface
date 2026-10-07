@@ -21,11 +21,15 @@ bootstrap to PHP's default handler.
 **bear (BEAR.Sunday).** The
 [`public/index.php`](https://github.com/bearsunday/BEAR.Sunday/blob/1.x/demo/public/index.php)
 bootstrap wraps the front-controller invocation in a `try` block with three
-`catch` arms: `ResourceNotFoundException` → `http_response_code(404)` and emit
-`"Not found"`; `BadRequestException` → `http_response_code(400)` and emit
-`"Bad request"`; `Throwable` → `http_response_code(500)`, emit
-`"Server error"`, `error_log()` the exception, and `exit(1)`. No
-`set_exception_handler()`, `set_error_handler()`, or
+`catch` arms:
+
+| Caught                      | Response                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| `ResourceNotFoundException` | `http_response_code(404)`, emit `"Not found"`                                            |
+| `BadRequestException`       | `http_response_code(400)`, emit `"Bad request"`                                          |
+| `Throwable`                 | `http_response_code(500)`, emit `"Server error"`, `error_log()` the exception, `exit(1)` |
+
+No `set_exception_handler()`, `set_error_handler()`, or
 `register_shutdown_function()` is installed. The
 [`BEAR\Resource\Resource`](https://github.com/bearsunday/BEAR.Resource/blob/1.x/src/Resource.php)
 class hosting the call does no catching of its own; all exception handling
@@ -85,12 +89,18 @@ installs no `set_exception_handler()`, `set_error_handler()`, or
 `register_shutdown_function()`. It wraps the front-controller invocation
 (a `$routerequest()` closure that ultimately calls
 `Request::forge()->execute()`) in a `try` block with four specific catches:
-`HttpBadRequestException` → `_400_` route; `HttpNoAccessException` → `_403_`
-route; `HttpNotFoundException` → `_404_` route; `HttpServerErrorException`
-→ `_500_` route. Each is dispatched as another `$routerequest()` call to the
-corresponding error-route closure. There is **no** general `Throwable` (or
-`Exception`) catch; anything outside those four types bubbles uncaught out
-of the bootstrap. One hop into the framework,
+
+| Caught                     | Route   |
+| -------------------------- | ------- |
+| `HttpBadRequestException`  | `_400_` |
+| `HttpNoAccessException`    | `_403_` |
+| `HttpNotFoundException`    | `_404_` |
+| `HttpServerErrorException` | `_500_` |
+
+Each is dispatched as another `$routerequest()` call to the corresponding
+error-route closure. There is **no** general `Throwable` (or `Exception`)
+catch; anything outside those four types bubbles uncaught out of the
+bootstrap. One hop into the framework,
 [`Fuel\Core\Request::execute()`](https://github.com/fuel/core/blob/1.8/master/classes/request.php)
 has its own `try`/`catch (\Exception $e)`, but only to reset request state
 and restore language config before rethrowing; it does not absorb
@@ -119,11 +129,17 @@ where the user instantiates `Klein` directly and calls `$klein->dispatch()`.
 The relevant exception handling lives entirely in
 [`Klein\Klein::dispatch()`](https://github.com/klein/klein.php/blob/master/src/Klein/Klein.php),
 which wraps route execution in a `try` block with three catch arms:
-`HttpExceptionInterface` → `httpError()`; `Throwable` → `error()`; `Exception`
-(PHP 5 compat) → `error()`. The `error()` method runs user-registered
-callbacks (added via `onError()`) or, if none, sets HTTP status 500, cleans
-output buffers, and throws `UnhandledException`. The `httpError()` method
-runs callbacks added via `onHttpError()`. Klein installs no
+
+| Caught                     | Handled by    |
+| -------------------------- | ------------- |
+| `HttpExceptionInterface`   | `httpError()` |
+| `Throwable`                | `error()`     |
+| `Exception` (PHP 5 compat) | `error()`     |
+
+The `error()` method runs user-registered callbacks (added via `onError()`)
+or, if none, sets HTTP status 500, cleans output buffers, and throws
+`UnhandledException`. The `httpError()` method runs callbacks added via
+`onHttpError()`. Klein installs no
 `set_exception_handler()` or `register_shutdown_function()` globally; one
 `set_error_handler()` call exists but only as a temporary trap inside
 `validateRegularExpression()` for catching regex-compile errors during route
@@ -286,9 +302,8 @@ calls in `Application.php` itself.
 
 **slim.** The
 [`public/index.php`](https://github.com/slimphp/Slim-Skeleton/blob/main/public/index.php)
-bootstrap is one of the most explicit in the survey. It builds a DI
-container, instantiates the Slim app, instantiates a custom
-`App\Application\Handlers\HttpErrorHandler`, instantiates a custom
+bootstrap builds a DI container, instantiates the Slim app, instantiates a
+custom `App\Application\Handlers\HttpErrorHandler`, instantiates a custom
 `App\Application\Handlers\ShutdownHandler`, and registers the latter via
 `register_shutdown_function($shutdownHandler)`. It then calls
 `$app->addErrorMiddleware($displayErrorDetails, $logError, $logErrorDetails)`
@@ -341,13 +356,11 @@ application, swaps in the actual `ErrorHandler` from the container, then
 wraps `$application->start()` and `$application->handle($request)` in a
 `try`/`catch (Throwable)`. Caught throwables are routed through an
 `ErrorCatcher` middleware (obtained from the container) to produce the
-response. A `finally` block runs `afterEmit()` and `shutdown()`. This is
-one of the most thorough exception-handling patterns in the survey.
+response. A `finally` block runs `afterEmit()` and `shutdown()`.
 
 ## Cross-cutting patterns
 
-**Architectural locus varies enormously.** Across the 23 projects, the
-place where catching happens is not consistent. Eight loci are
+**The catch location varies.** Across the 23 projects, eight locations are
 represented: the bootstrap script itself (bear, fuelphp, lightmvc-prod,
 phalcon); the front-controller class's own `run()` / `dispatch()` (klein,
 nette); a runner or wrapper one hop deep (yii's `HttpApplicationRunner`);
@@ -396,9 +409,10 @@ bootstraps (aura, laminas, laravel, leafphp, mezzio, phpixie, symfony's
 demo, tempest, yii) defer entirely or near-entirely to framework
 infrastructure for error handling. Rich bootstraps (bear, fuelphp,
 lightmvc, phalcon, slim) do explicit work that often includes catching.
-The modern trajectory (laravel 12 / mezzio 3 / symfony+runtime) is
-toward minimal bootstraps with catching pushed deeper, consistent with a
-directive that permits any catch locus.
+The most recent versions surveyed (laravel 12, mezzio 3, symfony with
+`symfony/runtime`) all have minimal bootstraps with the catching deeper in
+the framework. That is consistent with a directive that permits any catch
+location.
 
 **PHP global handler usage is rare and uneven.** Direct calls to
 `set_exception_handler` within bootstrap+one-hop scope appear in fatfree
@@ -416,12 +430,12 @@ handling specifically*.
 
 ## Summary tables
 
-The three tables below distill the per-project paragraphs along three
-dimensions: where catching happens (locus), how it catches (mechanism),
-and what is caught (scope). They are scannable summaries; the paragraphs
-above remain the source of truth for citations and nuance.
+The three tables below summarize the per-project paragraphs along three
+dimensions: where catching happens (location), how it catches (mechanism),
+and what is caught (scope). The paragraphs above give the citations and the
+detail behind each mark.
 
-### Locus
+### Location
 
 Where catching happens. Each project falls in exactly one bucket.
 
@@ -573,7 +587,7 @@ config.
 (2) The catch lives beyond the strict one-hop scope (event listeners
 or deferred framework infrastructure). Marked per the project's
 documented framework behavior; the per-project paragraph above flags
-the out-of-scope locus.
+the out-of-scope location.
 
 (3) `lightmvc` catching applies only in the production environment.
 

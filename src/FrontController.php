@@ -28,12 +28,12 @@ interface FrontController
      *       ordinary negative outcome.
      *
      *     - Implementations MAY return a value between `2` and `254`
-     *       (inclusive) to distinguish among negative outcomes; the meanings
-     *       of such values are explicitly undefined herein.
+     *       (inclusive) to distinguish among negative outcomes other than the
+     *       ordinary one; the meanings of such values are explicitly undefined
+     *       herein.
      *
-     *     - Implementations MUST NOT terminate the process in place of
-     *       returning from `run()`, whether by [`exit()`][], [`die()`][], or
-     *       otherwise.
+     *     - Implementations MUST NOT end the execution of `run()` by calling
+     *       [`exit()`][] or [`die()`][].
      *
      *     - Implementations MUST NOT allow a [_Throwable_][] to escape `run()`.
      *

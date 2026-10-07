@@ -28,16 +28,16 @@ other twelve are widely used PHP command line tools, included because their
 exit values are determinable from source or documentation.
 
 The `atoum`, `phpcpd`, and `phploc` packages are marked abandoned on
-Packagist. They are surveyed regardless, on the grounds that a settled project
-still records how its authors answered the question. The `drush` and `wpcli`
-projects serve single application ecosystems rather than PHP generally, and
-are surveyed on the same grounds.
+Packagist. They are surveyed anyway, because their exit values still show how
+their authors handled the question. The `drush` and `wpcli` projects
+serve single application ecosystems rather than PHP generally, and are
+surveyed anyway.
 
 The remaining 17 researched projects were not examined individually. At least
 four of them do provide a first-party console: `lithium` has
 `lithium\console\Dispatcher`, `fuelphp` has `fuel/oil`, `phpixie` has
-`phpixie/console`, and `phalcon` has `Phalcon\Cli\Console`. Their omission is
-a limit of this survey rather than an absence of material.
+`phpixie/console`, and `phalcon` has `Phalcon\Cli\Console`. The survey omits
+them, though material exists.
 
 Five of the surveyed projects declare a dependency on `symfony/console`. The
 `laravel` class `Illuminate\Console\Command` extends
@@ -226,8 +226,7 @@ four none across the 17 distinct schemes.
 
 Several of the surveyed tools report on work they were asked to inspect, and
 so must distinguish "the tool could not run" from "the tool ran, and here is
-what it found." They agree that the distinction is worth making, and disagree
-about which side gets `1`.
+what it found." Most of them do, but they disagree about which side gets `1`.
 
 The test runners give `1` to the finding and push tool errors above it:
 
@@ -263,7 +262,7 @@ caller. The `phpstan` project returns `1` for analysis errors and setup
 failures alike; the `phpcpd` project returns `1` both when duplication is
 found and when it cannot complete.
 
-The split tracks what each tool treats as its ordinary negative outcome. For a
+The split follows what each tool treats as its ordinary negative outcome. For a
 test runner that is a failing test, so failure takes `1` and anything else is
 exceptional. For an analyzer it is being unable to run, so the finding is the
 distinguished case and takes a higher value.
@@ -275,8 +274,8 @@ in both, `>1` means an error occurred.
 
 ## The Ceiling
 
-Three surveyed projects police the range, by three different means, and none
-stops at `254`.
+Three surveyed projects check the range of exit codes, by three different
+means, and none stops at `254`.
 
 The `symfony` project clamps. `Application::run()` reduces any exit code
 greater than `255` to `255`. The clamp sits inside the `autoExit` branch,
@@ -297,10 +296,10 @@ All three admit `255`, which PHP itself reserves; cf.
 [`exit()`](https://php.net/exit): "Exit codes should be in the range 0 to 254,
 the exit code 255 is reserved by PHP and should not be used."
 
-The `phpunit` project goes further and occupies it. `Result::CRASH` is defined
-as `255`, and `Application` calls `exit(Result::CRASH)` when PHPUnit itself
-fails rather than when a test does. No surveyed project treats `254` as the
-ceiling, as PHP's own documentation advises.
+The `phpunit` project goes further and uses `255` itself. `Result::CRASH` is
+defined as `255`, and `Application` calls `exit(Result::CRASH)` when PHPUnit
+itself fails rather than when a test does. No surveyed project treats `254`
+as the ceiling, as PHP's own documentation advises.
 
 ## Returning and Exiting
 
@@ -319,8 +318,8 @@ throughout, and `tempest`'s `ConsoleApplication::run()` ends in a
 Two projects diverge on the return type itself. The `cakephp` method
 `CommandInterface::run()` is declared `: ?int` and documented as "Exit code or
 null for success," admitting `null` alongside the integer. The `tempest`
-console command signature is wider still, returning `ExitCode|int` and so
-admitting an enum case where the others admit only a scalar.
+console command signature returns `ExitCode|int`, so it admits an enum case as
+well as an integer.
 
 ## Considered But Not Included
 
