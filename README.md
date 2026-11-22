@@ -154,22 +154,24 @@ many execution contexts, and keeps the interface machine-friendly.
 
 ### Why recommend `1` for an ordinary negative outcome?
 
-All 18 PHP command line projects surveyed in [README-RETURNS.md][] reserve
-`0` for success. All but two also reserve `1` for the negative outcome they
-treat as ordinary, and where `1` is named, the sense is generic: `yii` calls it
-`UNSPECIFIED_ERROR`, `drush` `EXIT_FAILURE`, and `aura` and `symfony`
-`FAILURE`. The exceptions are `phpcs`, whose `1` is `FIXABLE`, one of three
-flags its `ExitCode::calculate()` composes bitwise; and `phpcsfixer`, whose
-source reserves `1` "for environment constraints not matched" and puts its
-ordinary outcome, files needing fixing, at `8`. Those two exceptions are why
+All 27 PHP command line projects surveyed in [README-RETURNS.md][] reserve
+`0` for success. All but three also reserve `1` for the negative outcome they
+treat as ordinary, and where `1` is named, the sense is mostly generic: `yii`
+calls it `UNSPECIFIED_ERROR`, `drush` `EXIT_FAILURE`, and `aura` and `symfony`
+`FAILURE`, while `phpmd`'s `EXIT_EXCEPTION` names a cause. The three
+exceptions are `phpcs`, whose `1` on its 4.x line is `FIXABLE`, one of three
+flags its `ExitCode::calculate()` composes bitwise; `phpcsfixer`, whose source
+reserves `1` "for environment constraints not matched" and puts its ordinary
+outcome, files needing fixing, at `8`; and `nette`, which documents only `0`
+and `2` and leaves `1` without a meaning. Those three exceptions are why
 Front-Interop recommends `1` rather than requiring it.
 
-The projects differ on what the ordinary outcome is because they do different
-kinds of work. Test runners give the low values to the finding, and push tool
-errors above them; for example, `phpunit` reports failing tests with `1` and
-`2`, and reserves `255` for a fault in PHPUnit itself. Analysis tools do the
-reverse: `psalm` exits `1` "when there was a problem running Psalm" and `2`
-"when it completed successfully but found some issues".
+The projects differ on what the ordinary outcome is largely because they do
+different kinds of work. Test runners give the low values to the finding, and
+push tool errors above them; for example, `phpunit` reports failing tests with
+`1` and `2`, and reserves `255` for a fault in PHPUnit itself. Several analysis
+tools do the reverse: `psalm` exits `1` "when there was a problem running
+Psalm" and `2` "when it completed successfully but found some issues".
 
 Front-Interop therefore recommends the value and leaves the meaning to each
 implementation. A `1` reports whichever negative outcome an implementation
@@ -180,19 +182,22 @@ result.
 
 ### Why leave exit status codes `2` through `254` undefined?
 
-Above `1` the surveyed schemes split five ways. Nine assign small
+Above `1` the surveyed schemes split five ways. Thirteen assign small
 sequential values, two adopt the [`sysexits.h`][] range beginning at `64`,
-two use a combinable bitmask, one adopts the shell's reserved conventions
-at `126` and above, and four define nothing above `1` at all; `tempest` is
-counted in two of those groups, so the five figures cover 17 distinct
-schemes.
+two use a combinable bitmask, three adopt the shell's reserved conventions
+at `126` and above, and seven define nothing above `1` at all. Those figures
+cover 25 distinct schemes, because `laravel` and `laminas` inherit
+`symfony`'s, and sum to 27 because `joomla` and `tempest` are each counted in
+two of the groups.
 
 Sequential values are a bare majority, but the projects that use them do not
 agree on what `2` means. It means invalid input to `symfony` and `tempest`, a
-test that errored to `phpunit`, issues found to `psalm`, a rule violation to
-`phpmd`, a dependency solving failure to `composer`, and an unused result cache
-to `phpstan`. A caller could not rely on what `2` means, so the interface
-leaves `2` through `254` explicitly undefined.
+wrong command line to `nette`, a test that errored to `phpunit`, issues found
+to `psalm`, a rule violation to `phpmd`, a dependency solving failure to
+`composer`, an unused result cache to `phpstan`, and a server error to
+`bear`; within `joomla`, it means something different from one command to
+the next. A caller could not rely on what `2` means, so the interface leaves
+`2` through `254` explicitly undefined.
 
 What a consumer can rely on portably is the distinction between `0` and
 everything else; the meaning of any particular non-`0` value is determined by
@@ -205,10 +210,15 @@ ceiling comes from PHP rather than from practice; cf. [`exit()`][]: "Exit
 codes should be in the range 0 to 254, the exit code 255 is reserved by PHP
 and should not be used."
 
-Surveyed practice differs. Three of the projects in [README-RETURNS.md][]
-check the range of exit codes, and all three allow `255`. The `phpunit`
-project goes further: it defines `Result::CRASH` as `255` and exits with it
-when PHPUnit itself fails. No surveyed project stops at `254`.
+Surveyed practice differs. Four of the projects in [README-RETURNS.md][]
+check the range of exit codes, and all four allow `255`. Three go further
+and use it: `phpunit` defines `Result::CRASH` as `255` and exits with it when
+PHPUnit itself fails, `laminas` exits with it when it cannot find the
+application's container, and the library under `flightphp` exits with it
+when a command throws. Where nothing checks, a value above `255` wraps
+around: `kohana`'s console exits with an error's PHP level as its status, so
+an `E_DEPRECATED` there ends with `0`, the status for success. Only `lithium`
+documents `254` as the ceiling, and no surveyed project enforces it.
 
 Front-Interop defers to PHP, for a reason particular to a front controller.
 With no handler registered, PHP exits `255` when a [_Throwable_][] escapes
@@ -226,10 +236,11 @@ value says what `run()` did; the process status says how the process ended.
 
 ### Why must implementations return rather than exit?
 
-Of the 23 researched projects, 21 return control to their caller on the
-success path with no [`exit()`][] or [`die()`][]. Of the remaining two,
-`symfony`'s `run()` also returns, with its runtime then exiting with the
-returned integer, while only `tempest`'s never returns control at all.
+Of the 23 researched projects, 20 return control to their caller on the
+success path with no [`exit()`][] or [`die()`][]. Of the remaining three,
+`symfony`'s and `lightmvc`'s `run()` also return, with `symfony`'s runtime
+then exiting with the returned integer and `lightmvc`'s bootstrap with a bare
+`exit`, while only `tempest`'s never returns control at all.
 
 Front-Interop directs that implementations return rather than exit, as the
 majority already do. A worker loop, queue worker, or test harness needs `run()`
@@ -241,7 +252,8 @@ caller gets control back, so the caller never sees the status.
 
 Of the 23 researched projects, 21 handle exceptions in some way; of those,
 19 handle all types of [_Throwable_][], 1 handles all types of
-[_Exception_][], and 1 handles only specific exception subtypes.
+[_Exception_][], and 1 handles only specific exception subtypes; cf.
+[README-EXCEPTIONS.md][].
 
 Front-Interop observes that a front controller invocation occurs at the
 outermost boundary of the presentation layer. This is the last point at which
@@ -273,6 +285,7 @@ the caller can act on it.
 [`set_exception_handler()`]: https://php.net/set_exception_handler
 [`sysexits.h`]: https://man7.org/linux/man-pages/man3/sysexits.h.3head.html
 [BCP 14]: https://datatracker.ietf.org/doc/bcp14/
+[README-EXCEPTIONS.md]: ./README-EXCEPTIONS.md
 [README-RESEARCH.md]: ./README-RESEARCH.md
 [README-RETURNS.md]: ./README-RETURNS.md
 [RFC 2119]: https://datatracker.ietf.org/doc/html/rfc2119
