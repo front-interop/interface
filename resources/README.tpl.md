@@ -35,11 +35,10 @@ Notes:
 
 ### Why `run()`?
 
-The researched projects use one of six verbs for the front controller's main
-method: `dispatch()`, `execute()`, `handle()`, `__invoke()`, `run()`, or
-`start()`. Of these, `run()` is an outright majority at 12 of 23 projects;
-the remaining five verbs together account for the other 11. Front-Interop
-follows the majority practice.
+Of the six verbs the researched projects use for the front controller's main
+method (`dispatch()`, `execute()`, `handle()`, `__invoke()`, `run()`, and
+`start()`), `run()` is an outright majority, at 12 of 23 projects.
+Front-Interop follows that majority.
 
 ### Why does `run()` return `int`?
 
@@ -51,12 +50,9 @@ Of the 23 researched projects:
 - 1 (Tempest) `never` returns; and
 - 1 (Symfony) returns an `int` exit code.
 
-The largest group of researched projects, 11 of 23, have the front controller
-handle response-sending itself and return nothing.
-
-However, Front-Interop observes that a front controller in a different execution
-context may need to return an integer exit status code to its caller or parent
-process. These contexts include, among others:
+A front controller in another execution context, however, may need to return
+an integer exit status code to its caller or parent process. Such contexts
+include, among others:
 
 - command line invocations
 - continuous integration runners
@@ -65,15 +61,13 @@ process. These contexts include, among others:
 - test harnesses
 - worker loops
 
-While providing two interfaces (one to return `void` and another to return
-`int`) would cover both cases, it leads to inconsistencies in setup and
-expectations.
+Providing two interfaces, one returning `void` and another returning `int`,
+would cover both cases, but would split setup and expectations between them.
 
-Thus, contra the most common `void` or `null` return, Front-Interop directs that
-`run()` returns an integer exit status code. This is an unusual practice
-for front controllers in an HTTP execution context, but imposes only a trivial
-implementation burden. Doing so allows the same interface to be used across
-many execution contexts, and keeps the interface machine-friendly.
+Front-Interop therefore departs from the most common practice and directs
+that `run()` return an integer exit status code. That is unusual for a front
+controller in an HTTP context, but the implementation burden is trivial, and
+it lets the same machine-friendly interface serve many execution contexts.
 
 ### Why recommend `1` for an ordinary negative outcome?
 
@@ -96,12 +90,11 @@ push tool errors above them; for example, `phpunit` reports failing tests with
 tools do the reverse: `psalm` exits `1` "when there was a problem running
 Psalm" and `2` "when it completed successfully but found some issues".
 
-Front-Interop therefore recommends the value and leaves the meaning to each
-implementation. A `1` reports whichever negative outcome an implementation
-treats as ordinary, and the interface does not say which that must be. For
-some implementations it may be a [_Throwable_][] they had to handle
-themselves; for others, such as those handling queries, it may be an empty
-result.
+Front-Interop therefore recommends the value and leaves its meaning to each
+implementation: a `1` reports whichever negative outcome the implementation
+treats as ordinary. For some implementations that may be a [_Throwable_][]
+they had to handle themselves; for others, such as those handling queries,
+an empty result.
 
 ### Why leave exit status codes `2` through `254` undefined?
 
@@ -122,9 +115,8 @@ to `psalm`, a rule violation to `phpmd`, a dependency solving failure to
 the next. A caller could not rely on what `2` means, so the interface leaves
 `2` through `254` explicitly undefined.
 
-What a consumer can rely on portably is the distinction between `0` and
-everything else; the meaning of any particular non-`0` value is determined by
-the implementation.
+A consumer can rely portably only on the distinction between `0` and
+everything else; what any other value means is up to the implementation.
 
 ### Why stop at `254`?
 
@@ -133,7 +125,7 @@ ceiling comes from PHP rather than from practice; cf. [`exit()`][]: "Exit
 codes should be in the range 0 to 254, the exit code 255 is reserved by PHP
 and should not be used."
 
-Surveyed practice differs. Four of the projects in [README-RETURNS.md][]
+Surveyed practices differ. Four of the projects in [README-RETURNS.md][]
 check the range of exit codes, and all four allow `255`. Three go further
 and use it: `phpunit` defines `Result::CRASH` as `255` and exits with it when
 PHPUnit itself fails, `laminas` exits with it when it cannot find the
@@ -150,20 +142,20 @@ the stack unhandled. A front controller intentionally returning `255` would
 be indistinguishable from one that failed to return at all, which is the
 outcome the directives exist to prevent.
 
-That signal can still appear after `run()` has returned. An object that the
-front controller held may be released only after `run()` returns. If the
-destructor of that object throws a [_Throwable_][], no `try` in the
-implementation can catch it, and the directives do not cover it. A run that
-reported `0` can therefore still end with a `255` process status. The return
-value says what `run()` did; the process status says how the process ended.
+That signal can still appear after `run()` returns. If an object the front
+controller held is released afterward and its destructor throws a
+[_Throwable_][], no `try` in the implementation can catch it, and the
+directives do not cover it. A run that reported `0` can therefore still end
+with a `255` process status: the return value says what `run()` did, and the
+process status says how the process ended.
 
 ### Why must implementations return rather than exit?
 
 Of the 23 researched projects, 20 return control to their caller on the
-success path with no [`exit()`][] or [`die()`][]. Of the remaining three,
-`symfony`'s and `lightmvc`'s `run()` also return, with `symfony`'s runtime
-then exiting with the returned integer and `lightmvc`'s bootstrap with a bare
-`exit`, while only `tempest`'s never returns control at all.
+success path with no [`exit()`][] or [`die()`][]. Of the other three,
+`symfony`'s and `lightmvc`'s `run()` also return before their callers exit,
+`symfony`'s runtime with the returned integer; only `tempest`'s never
+returns control at all.
 
 Front-Interop directs that implementations return rather than exit, as the
 majority already do. A worker loop, queue worker, or test harness needs `run()`
@@ -173,29 +165,28 @@ caller gets control back, so the caller never sees the status.
 
 ### Why must no [_Throwable_][] escape `run()`?
 
-Of the 23 researched projects, 21 handle exceptions in some way; of those,
-19 handle all types of [_Throwable_][], 1 handles all types of
-[_Exception_][], and 1 handles only specific exception subtypes; cf.
-[README-EXCEPTIONS.md][].
+Of the 23 researched projects, 21 handle exceptions in some way: 19 catch
+every [_Throwable_][], one catches only [_Exception_][]s, and one catches only
+specific subtypes; cf. [README-EXCEPTIONS.md][].
 
-Front-Interop observes that a front controller invocation occurs at the
-outermost boundary of the presentation layer. This is the last point at which
-any uncaught [_Throwable_][]s may be handled gracefully. The choice then is
-whether they are handled by the bootstrap script, or by the front controller
-proper.
+A front controller invocation sits at the outermost boundary of the
+presentation layer, the last point at which an uncaught [_Throwable_][] can
+be handled gracefully. The choice is whether the bootstrap script handles it
+or the front controller proper.
 
-In the interest of keeping such handling within a class, Front-Interop
-prohibits a [_Throwable_][] from leaving `run()`, making the _FrontController_
-the final backstop. Other handling subsystems can exist in the logic it calls;
+To keep that handling within a class, Front-Interop prohibits a
+[_Throwable_][] from leaving `run()`, making the _FrontController_ the final
+backstop. Other handling subsystems can exist in the logic it calls;
 anything escaping them stops at the _FrontController_ rather than reaching
 the caller.
 
 A handler registered with [`set_exception_handler()`][] cannot take the place
-of that backstop. PHP discards the value the handler returns, so the exit
-status is `0` whatever the handler returns. By the time the handler runs,
-`run()` has already unwound, and the caller never gets control back. The
-handler could call [`exit()`][] with a status, but that ends the script before
-the caller can act on it.
+of that backstop. By the time the handler runs, `run()` has already unwound,
+and the caller never gets control back; PHP ignores the handler's return
+value, and the script exits `0`. The handler could call [`exit()`][] with a
+status, but that ends the script before the caller can act on it. Two of the
+surveyed projects, `fatfree` and `flightphp`, handle a [_Throwable_][] only
+through such a handler.
 
 * * *
 
