@@ -218,8 +218,9 @@ only if sending the error response itself throws (a separate pre-flight
 `Flight::halt()` terminates before `start()` runs if `config.php` is
 missing).
 
-(3) Marked within the surveyed bootstrap-plus-one-hop scope; whether deeper
-framework infrastructure ultimately calls `exit()` was not examined.
+(3) Marked within the one-hop scope, which covers the bootstrap and one hop
+into the framework; whether deeper framework infrastructure ultimately calls
+`exit()` was not examined.
 
 (4) `lightmvc`'s bootstrap calls a bare `exit` after `run()` returns, once it
 has persisted the session and flushed the output.
@@ -310,13 +311,19 @@ extended research and details, please see [README-EXCEPTIONS.md](./README-EXCEPT
 
 The points at which exception handling occurs are:
 
-- `none`: no observed exception/error handling
-- `bootstrap`: in the bootstrap script
-- `front`: in the front controller itself
-- `middleware`: in a middleware component
-- `handlers`: via `set_exception_handler()` (et al.) registered by the front controller or framework
-- `listeners`: via event listeners registered by the front controller or framework
-- `other`: in some other component, typically deeper in the framework internals
+- `none`: no exception or error handling is active for the project as
+  shipped, even beyond the one-hop scope.
+- `bootstrap`: catching occurs in the bootstrap script itself.
+- `front`: catching occurs inside the front-controller class's own method.
+- `middleware`: catching is performed by error middleware or a framework
+  error-handler component wired in by the bootstrap.
+- `handlers`: PHP global handlers are registered by the framework's
+  constructor or `init` method.
+- `listeners`: catching is performed via event listeners on a
+  `kernel.exception`-style event, deeper than one hop.
+- `other`: catching occurs anywhere not covered above, typically deeper in
+  the framework, either visible one hop in (e.g., a runner class) or deferred
+  entirely beyond the one-hop scope.
 
 |           | none | bootstrap | front | middleware | handlers | listeners | other |
 | --------- | ---- | --------- | ----- | ---------- | -------- | --------- | ----- |
@@ -354,39 +361,46 @@ Notes:
 
 The types caught by exception handling are:
 
-- `Throwable`: both `Exception`s and `Error`s
-- `Exception`: `Exception` but not `Error`
-- `limited`: only specific exception subtypes
-- `none`: no catching at all
+- all `Throwable`: anything implementing `Throwable` is caught (both
+  `Exception`s and `Error`s).
+- `Exception` only: `Exception`s are caught but `Error`s slip through.
+- specific subtypes only: only specific `Throwable` subtypes are caught
+  (e.g., particular `Http*Exception`s); anything else bubbles.
+- `none`: no catching at all as shipped, in scope or beyond.
 
-|             | `Throwable` | `Exception` | limited | none |
-| ----------- | ----------- | ----------- | ------- | ---- |
-| aura        |             |             |         | x    |
-| bear        | x           |             |         |      |
-| cakephp     | x           |             |         |      |
-| fatfree     | x           |             |         |      |
-| flightphp   | x (1)       |             |         |      |
-| fuelphp     |             |             | x       |      |
-| joomla      | x           |             |         |      |
-| klein       | x           |             |         |      |
-| kohana      | x           |             |         |      |
-| laminas     | x           |             |         |      |
-| laravel     | x           |             |         |      |
-| leafphp     | x           |             |         |      |
-| lightmvc    | x (2)       |             |         |      |
-| lithium     |             |             |         | x    |
-| mezzio      | x           |             |         |      |
-| nette       | x           |             |         |      |
-| phalcon     |             | x           |         |      |
-| phpixie     | x           |             |         |      |
-| silex       | x           |             |         |      |
-| slim        | x           |             |         |      |
-| symfony     | x           |             |         |      |
-| tempest     | x           |             |         |      |
-| yii         | x           |             |         |      |
+|             | all `Throwable` | `Exception` only | specific subtypes only | none |
+| ----------- | --------------- | ---------------- | ---------------------- | ---- |
+| aura        |                 |                  |                        | x    |
+| bear        | x               |                  |                        |      |
+| cakephp     | x               |                  |                        |      |
+| fatfree     | x               |                  |                        |      |
+| flightphp   | x (1)           |                  |                        |      |
+| fuelphp     |                 |                  | x                      |      |
+| joomla      | x               |                  |                        |      |
+| klein       | x               |                  |                        |      |
+| kohana      | x (2)           |                  |                        |      |
+| laminas     | x (2)           |                  |                        |      |
+| laravel     | x (2)           |                  |                        |      |
+| leafphp     | x (2)           |                  |                        |      |
+| lightmvc    | x (3)           |                  |                        |      |
+| lithium     |                 |                  |                        | x    |
+| mezzio      | x               |                  |                        |      |
+| nette       | x               |                  |                        |      |
+| phalcon     |                 | x                |                        |      |
+| phpixie     | x (2)           |                  |                        |      |
+| silex       | x (2)           |                  |                        |      |
+| slim        | x               |                  |                        |      |
+| symfony     | x (2)           |                  |                        |      |
+| tempest     | x (2)           |                  |                        |      |
+| yii         | x               |                  |                        |      |
 
 Notes:
 
 (1) `flightphp` catching is conditional on the `flight.handle_errors` config.
 
-(2) `lightmvc` catching applies only in the production environment.
+(2) The catch lives beyond the strict one-hop scope (event listeners or
+deferred framework infrastructure). Marked per the project's documented
+framework behavior; the project's narrative in
+[README-EXCEPTIONS.md](./README-EXCEPTIONS.md) flags the out-of-scope location.
+
+(3) `lightmvc` catching applies only in the production environment.
