@@ -1,21 +1,19 @@
 # Change Log
 
-## NEXT
+## 1.0.0
 
-Refine the directive wording.
+First stable release.
 
-- Revise the exit directive: implementations must not end the execution of
-  `run()` by calling `exit()` or `die()`. It formerly forbade terminating the
-  process, whether by `exit()`, `die()`, or otherwise.
+- Revise the exit directive: implementations must not end `run()` by calling
+  `exit()` or `die()`.
 
 - Revise the `2` through `254` directive: such values distinguish among
   negative outcomes other than the ordinary one.
 
-- Correct README-RETURNS.md: `phpstan` and `phpcpd` draw no distinction
-  between findings and failures, so not every tool makes it.
+- Extend README-RETURNS.md to the first-party consoles of the researched
+  projects, for 27 surveyed projects in all.
 
-- Documentation and typographical refinements, including tables in
-  README-EXCEPTIONS.md in place of arrow lists.
+- Correct and refine the research documents and the README Q&A.
 
 - No API changes.
 
@@ -75,7 +73,7 @@ Refine the directives in light of exit status research.
 
 ## 1.0.0-beta1
 
-Incorporate notes and from public review.
+Incorporate notes from public review.
 
 - Direct that `run()` must not `exit()`, `die()`, or otherwise avoid returning.
 
