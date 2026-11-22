@@ -176,7 +176,7 @@ framework's shutdown path rather than a literal `exit()`/`die()` of its own.
 Every other surveyed front controller returns control to its caller.
 
 - `returns`: `run()` returns control to its caller; no `exit()`/`die()` appears
-  in the surveyed invocation path.
+  on the success path of the surveyed invocation.
 - `caller exit()`: `run()` returns, but the immediate caller or runtime then
   calls `exit()`, in `symfony`'s case with the returned integer.
 - `no return`: `run()` does not return control to its caller, whether by
@@ -196,7 +196,7 @@ Every other surveyed front controller returns control to its caller.
 | laminas       | x       |                 |               |
 | laravel (3)   | x       |                 |               |
 | leafphp (3)   | x       |                 |               |
-| lightmvc      | x       |                 |               |
+| lightmvc (4)  |         | x               |               |
 | lithium       | x       |                 |               |
 | mezzio (3)    | x       |                 |               |
 | nette         | x       |                 |               |
@@ -205,7 +205,7 @@ Every other surveyed front controller returns control to its caller.
 | silex (3)     | x       |                 |               |
 | slim          | x       |                 |               |
 | symfony       |         | x               |               |
-| tempest (4)   |         |                 | x             |
+| tempest (5)   |         |                 | x             |
 | yii (3)       | x       |                 |               |
 
 Notes:
@@ -221,23 +221,32 @@ missing).
 (3) Marked within the surveyed bootstrap-plus-one-hop scope; whether deeper
 framework infrastructure ultimately calls `exit()` was not examined.
 
-(4) `tempest`'s `run()` is declared `never` (cf. § *Front Controller Return*);
+(4) `lightmvc`'s bootstrap calls a bare `exit` after `run()` returns, once it
+has persisted the session and flushed the output.
+
+(5) `tempest`'s `run()` is declared `never` (cf. § *Front Controller Return*);
 it terminates through the framework's `Kernel::shutdown()`, not a literal
 `exit()`/`die()` of its own. Its bootstrap calls `exit()` after the invocation,
 though the `never` return makes that line unreachable.
 
-Of the 23 projects, 21 return control on the success path with no
-`exit()`/`die()`. Of the remaining two, `symfony`'s `run()` also returns (its
-runtime then `exit()`s with the returned integer), while only `tempest`'s
-`run()` never returns control at all. The exits that do appear are reached
-while handling an error: `bear`'s bootstrap catch arm calls `exit(1)`, and
-`flightphp`'s registered exception handler falls back to `exit($msg)` when
-emitting the error response itself throws. Only `bear`'s sits outside the
-front controller; `flightphp` registers its handler from
+Of the 23 projects, 20 return control on the success path with no
+`exit()`/`die()`. Of the remaining three, `symfony`'s and `lightmvc`'s `run()`
+also return, with `symfony`'s runtime then `exit()`ing with the returned
+integer and `lightmvc`'s bootstrap with a bare `exit`, while only `tempest`'s
+`run()` never returns control at all. The remaining exits on the invocation
+path are reached while handling an error: `bear`'s bootstrap catch arm calls
+`exit(1)`, and `flightphp`'s registered exception handler falls back to
+`exit($msg)` when emitting the error response itself throws. Only `bear`'s
+sits outside the front controller; `flightphp` registers its handler from
 `flight\Engine::init()` and reaches the fallback through `_error()`, both
 methods of the class whose `start()` is the surveyed front controller.
-Earlier still, its bootstrap calls `Flight::halt(500, ...)` before `start()`
-runs when `config.php` is missing.
+
+Several bootstraps also exit before the front controller is invoked at all:
+`fatfree`, `fuelphp`, and `joomla` when their dependencies are missing,
+`lightmvc` when its directories are not writable or its session fails to
+start, `kohana`'s CLI branch when the Minion module is absent, and `flightphp`
+through `Flight::halt()` when `config.php` is missing. These guards precede
+the invocation, and are not counted above.
 
 ## Front Controller Return
 
@@ -317,7 +326,7 @@ The points at which exception handling occurs are:
 | fatfree   |      |           |       |            | x        |           |       |
 | flightphp |      |           |       |            | x (1)    |           |       |
 | fuelphp   |      | x         |       |            |          |           |       |
-| joomla    |      |           |       | x          |          |           |       |
+| joomla    |      |           | x     |            |          |           |       |
 | klein     |      |           | x     |            |          |           |       |
 | kohana    |      |           |       |            |          |           | x     |
 | laminas   |      |           |       |            |          | x         |       |
